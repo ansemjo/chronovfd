@@ -9,6 +9,7 @@
 #define strobe(pin) toggle(pin); toggle(pin)
 
 RTC_DS1307 rtc;
+static bool rtc_enabled = false;
 
 void setup() {
 
@@ -16,8 +17,11 @@ void setup() {
   pinMode(CLCK, OUTPUT);
   pinMode(DATA, OUTPUT);
 
-  TinyWireM.begin();
-  rtc.begin();
+  if (analogRead(4) < 750) { 
+    TinyWireM.begin();
+    rtc.begin();
+    rtc_enabled = true;
+  }
   
 }
 
@@ -52,6 +56,16 @@ uint16_t lookup(char ch) {
     case '8': return a|b|c|d|e|f|g;
     case '9': return a|b|c|d|g|f;
     case ':': return dt|db;
+    case '.': return db;
+    case ',': return dt;
+    case 'H': return b|c|e|f|g;
+    case 'L': return d|e|f;
+    case 'c': return d|e|g;
+    case 'd': return b|c|d|e|g;
+    case 'P': return a|b|e|f|g;
+    case 'r': return e|g;
+    case 'o': return c|d|e|g;
+    case 'g': return a|b|c|d|g|f;
     default: return 0;
   }
 }
@@ -75,12 +89,17 @@ void hvwrite(uint16_t data) {
 
 void loop() {
 
-  static uint8_t hour, minute;
   static char buf[32];
-  DateTime now = rtc.now();
-  hour = now.hour();
-  minute = now.minute();
-  snprintf(buf, 6, "%02d:%02d", hour, minute);
+  if (rtc_enabled) {
+    static uint8_t hour, minute, sec;
+    DateTime now = rtc.now();
+    hour = now.hour();
+    minute = now.minute();
+    sec = now.second();
+    snprintf(buf, 6, "%02d%c%02d", hour, (sec % 2 == 0) ? ':' : ' ', minute);
+  } else {
+    snprintf(buf, 6, "Pr og");
+  }
 
   hvwrite(d1 | lookup(buf[0]));
   hvwrite(d2 | lookup(buf[1]));
