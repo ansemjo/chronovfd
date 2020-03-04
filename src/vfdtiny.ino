@@ -1,9 +1,10 @@
 #include <TinyWireM.h>
 #include <TinyRTClib.h>
 
-#define CLCK 1
-#define DATA 2
-#define STRB 3
+#define CLCK 7
+#define DATA 9
+#define STRB 8
+#define PROG 3
 
 #define toggle(pin) digitalWrite(pin, !digitalRead(pin))
 #define strobe(pin) toggle(pin); toggle(pin)
@@ -16,8 +17,9 @@ void setup() {
   pinMode(STRB, OUTPUT);
   pinMode(CLCK, OUTPUT);
   pinMode(DATA, OUTPUT);
+  pinMode(PROG, INPUT_PULLUP);
 
-  if (analogRead(4) < 750) { 
+  if (digitalRead(PROG) == HIGH) {
     TinyWireM.begin();
     rtc.begin();
     rtc_enabled = true;
@@ -26,22 +28,22 @@ void setup() {
 }
 
 // digits
-#define d1 (1 << 13)
-#define d2 (1 << 12)
-#define dd (1 << 11)
-#define d3 (1 << 10)
-#define d4 (1 <<  9)
+#define d1 (1 <<  3)
+#define d2 (1 <<  6)
+#define dd (1 <<  8)
+#define d3 (1 << 11)
+#define d4 (1 <<  0)
 
 // segments
-#define a  (1 << 0)
-#define b  (1 << 2)
-#define c  (1 << 5)
-#define d  (1 << 3)
-#define e  (1 << 6)
-#define f  (1 << 1)
-#define g  (1 << 7)
-#define dt (1 << 4)
-#define db (1 << 8)
+#define a  (1 <<  1)
+#define b  (1 << 12)
+#define c  (1 <<  7)
+#define d  (1 << 10)
+#define e  (1 <<  5)
+#define f  (1 << 13)
+#define g  (1 <<  4)
+#define dt (1 <<  2)
+#define db (1 <<  9)
 
 uint16_t lookup(char ch) {
   switch (ch) {
@@ -84,6 +86,7 @@ void hvwrite(uint16_t data) {
   }
 
   strobe(STRB);
+  delay(2);
 
 }
 
@@ -96,16 +99,16 @@ void loop() {
     hour = now.hour();
     minute = now.minute();
     sec = now.second();
-    snprintf(buf, 6, "%02d%c%02d", hour, (sec % 2 == 0) ? ':' : ' ', minute);
+    snprintf(buf, 6, "%02d%02d%c", hour, minute, (sec % 2 == 0) ? ':' : ' ');
   } else {
-    snprintf(buf, 6, "Pr og");
+    snprintf(buf, 6, "Prog");
   }
 
   hvwrite(d1 | lookup(buf[0]));
   hvwrite(d2 | lookup(buf[1]));
-  hvwrite(dd | lookup(buf[2]));
-  hvwrite(d3 | lookup(buf[3]));
-  hvwrite(d4 | lookup(buf[4]));
+  hvwrite(d3 | lookup(buf[2]));
+  hvwrite(d4 | lookup(buf[3]));
+  hvwrite(dd | lookup(buf[4]));
 
 }
 
