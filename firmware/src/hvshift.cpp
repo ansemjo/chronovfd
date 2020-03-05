@@ -2,8 +2,8 @@
 #include "segments.h"
 #include "hvshift.h"
 
-// define appropriate pins as outputs
 void HV::begin() {
+  // define appropriate pins as outputs
   pinMode(HV_CLOCK,  OUTPUT);
   pinMode(HV_DATA,   OUTPUT);
   pinMode(HV_STROBE, OUTPUT);
