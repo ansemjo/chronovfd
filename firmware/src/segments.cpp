@@ -76,6 +76,7 @@ unsigned lookup(char ch) {
     case '>': return Ac|Ad;
     case '<': return Ad|Ae;
     case '=': return Ad|Ag;
+    case '~': return Aa|Ad|Ag;
     // empty be default
     default: return 0;
   }

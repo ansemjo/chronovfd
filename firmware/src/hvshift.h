@@ -14,6 +14,8 @@ class HV {
   public:
     static void begin();
     static void write(uint16_t data);
+    static void text(const char *str);
+    static void raw(const uint16_t *buf);
     static void clear();
 };
 
