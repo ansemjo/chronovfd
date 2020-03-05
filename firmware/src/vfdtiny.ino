@@ -1,6 +1,8 @@
 #include <TinyWireM.h>
 #include <TinyRTClib.h>
 
+#include "segments.h"
+
 #define CLCK 7
 #define DATA 9
 #define STRB 8
@@ -25,51 +27,6 @@ void setup() {
     rtc_enabled = true;
   }
   
-}
-
-// digits
-#define d1 (1 <<  3)
-#define d2 (1 <<  6)
-#define dd (1 <<  8)
-#define d3 (1 << 11)
-#define d4 (1 <<  0)
-
-// segments
-#define a  (1 <<  1)
-#define b  (1 << 12)
-#define c  (1 <<  7)
-#define d  (1 << 10)
-#define e  (1 <<  5)
-#define f  (1 << 13)
-#define g  (1 <<  4)
-#define dt (1 <<  2)
-#define db (1 <<  9)
-
-uint16_t lookup(char ch) {
-  switch (ch) {
-    case '0': return a|b|c|d|e|f;
-    case '1': return b|c;
-    case '2': return a|b|g|e|d;
-    case '3': return a|b|c|d|g;
-    case '4': return f|g|b|c;
-    case '5': return a|f|g|c|d;
-    case '6': return a|f|e|d|c|g;
-    case '7': return a|b|c;
-    case '8': return a|b|c|d|e|f|g;
-    case '9': return a|b|c|d|g|f;
-    case ':': return dt|db;
-    case '.': return db;
-    case ',': return dt;
-    case 'H': return b|c|e|f|g;
-    case 'L': return d|e|f;
-    case 'c': return d|e|g;
-    case 'd': return b|c|d|e|g;
-    case 'P': return a|b|e|f|g;
-    case 'r': return e|g;
-    case 'o': return c|d|e|g;
-    case 'g': return a|b|c|d|g|f;
-    default: return 0;
-  }
 }
 
 
@@ -104,11 +61,11 @@ void loop() {
     snprintf(buf, 6, "Prog");
   }
 
-  hvwrite(d1 | lookup(buf[0]));
-  hvwrite(d2 | lookup(buf[1]));
-  hvwrite(d3 | lookup(buf[2]));
-  hvwrite(d4 | lookup(buf[3]));
-  hvwrite(dd | lookup(buf[4]));
+  hvwrite(G1 | lookup(buf[0]));
+  hvwrite(G2 | lookup(buf[1]));
+  hvwrite(G3 | lookup(buf[2]));
+  hvwrite(G4 | lookup(buf[3]));
+  hvwrite(Gd | lookup(buf[4]));
 
 }
 
