@@ -32,6 +32,7 @@
 #define Ag  (1 <<  4)
 #define Adt (1 <<  2)
 #define Adb (1 <<  9)
+#define SEGMENTS (Aa|Ab|Ac|Ad|Ae|Af|Ag|Adt|Adb)
 
 // some constant numbers
 #define GRIDS       5 // number of grids
