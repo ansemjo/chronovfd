@@ -1,4 +1,4 @@
-#include <TinyWireM.h>
+#include <TinyWireS.h>
 #include "segments.h"
 #include "hvshift.h"
 
@@ -6,12 +6,51 @@
 #define JPROG 3
 #define progmode() (digitalRead(JPROG) == LOW)
 
+// i2c adresses
+#define ADDRESS 0x20
+#define RTCADDR 0x68
+
+// buffers for display contents
+static volatile char buf[GRIDS + 1];
+static volatile char tmp[GRIDS + 1];
+static volatile uint8_t reqpos = 0;
+
+void i2cRequester() {
+
+  TinyWireS.send(buf[reqpos]);
+  reqpos = (reqpos + 1) % GRIDS;
+
+}
+
+// receive buffer from i2c
+void i2cReceiver(uint8_t n) {
+
+  // buf[0] = '8';
+
+  if (n < 1) { return; }
+
+  unsigned i = TinyWireS.receive();
+  n--;
+
+  while (n--) {
+    buf[i] = TinyWireS.receive();
+    i++;
+  }
+
+}
+
 void setup() {
 
   randomSeed(analogRead(0));
   pinMode(JPROG, INPUT_PULLUP);
   hv.begin();
-  TinyWireM.begin();
+
+  TinyWireS.begin(ADDRESS);
+  TinyWireS.onReceive(i2cReceiver);
+  TinyWireS.onRequest(i2cRequester);
+
+  // display i2c address
+  snprintf(buf, 6, ";c%02x:", ADDRESS);
   
 }
 
@@ -22,36 +61,8 @@ uint8_t bcdDecode(uint8_t b) {
 
 void loop() {
 
-  static char buf[GRIDS + 1];
-  static char tmp[GRIDS + 1];
-  if (!progmode()) {
-
-    static uint8_t hours, minutes, seconds;
-
-    // request three bytes from rtc
-    TinyWireM.beginTransmission(0x68);
-    TinyWireM.send(0);
-    TinyWireM.endTransmission();
-    TinyWireM.requestFrom(0x68, 3);
-
-    // receive and decode time values
-    seconds = bcdDecode(TinyWireM.receive());
-    minutes = bcdDecode(TinyWireM.receive());
-    hours   = bcdDecode(TinyWireM.receive());
-    
-    // print formatted time
-    snprintf(buf, 6, "%02d%02d%c", hours, minutes, (seconds % 2 == 0) ? ':' : ' ');
-    rollover(buf, tmp);
-  
-  } else {
-
-    snprintf(buf, 6, "~~~~");
-    if (millis() % 1000 < 50) {
-      buf[4] = '.';
-    }
-    hv.text(buf);
-
-  }
+  TinyWireS_stop_check();
+  hv.text(buf);
 
 }
 
