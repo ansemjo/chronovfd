@@ -16,7 +16,7 @@ unsigned lookup(char ch) {
     case '9': return Aa|Ab|Ac|Ad|Ag|Af;
     // alphabet
     case 'A': return Aa|Ab|Ac|Ae|Af|Ag;
-    case 'a': return lookup('a');
+    case 'a': return lookup('A');
     case 'B': return lookup('b');
     case 'b': return Ac|Ad|Ae|Af|Ag;
     case 'C': return Aa|Ad|Ae|Af;
@@ -77,6 +77,7 @@ unsigned lookup(char ch) {
     case '<': return Ad|Ae;
     case '=': return Ad|Ag;
     case '~': return Aa|Ad|Ag;
+    case ';': return Ac|Ae;
     // empty be default
     default: return 0;
   }
