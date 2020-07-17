@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-BUS=10 # find correct bus with: i2cdetect -l
+BUS="$(i2cdetect -l | awk '/i2c-tiny-usb/{ gsub("i2c-", "", $1); print $1; }')"
 DEV="0x20" # configured device address of vfd
 
 while true; do
