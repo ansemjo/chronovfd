@@ -266,8 +266,8 @@ U 1 1 5F1B4DF1
 P 7550 3550
 F 0 "U2" H 7550 4220 50  0000 C CNN
 F 1 "LM4871MX_NOPB" H 7550 4129 50  0000 C CNN
-F 2 "snapeda_lib:SOIC127P599X175-8N" H 7550 3550 50  0001 L BNN
-F 3 "" H 7550 3550 50  0001 C CNN
+F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 7550 3550 50  0001 L BNN
+F 3 "https://www.ti.com/lit/ds/symlink/lm4871.pdf?HQS=TI-null-null-digikeymode-df-pf-null-wwe&ts=1595529775354" H 7550 3550 50  0001 C CNN
 	1    7550 3550
 	1    0    0    -1  
 $EndComp

@@ -14,10 +14,10 @@ Comment3 "Adjusted for IVL2-5/7"
 Comment4 ""
 $EndDescr
 $Comp
-L Regulator_Switching:LM2733YMF U1
+L Regulator_Switching:LM2733YMF U3
 U 1 1 5F189D50
 P 2450 3400
-F 0 "U1" H 2450 3767 50  0000 C CNN
+F 0 "U3" H 2450 3767 50  0000 C CNN
 F 1 "LM2733YMF" H 2450 3676 50  0000 C CNN
 F 2 "Package_TO_SOT_SMD:SOT-23-5" H 2500 3150 50  0001 L CIN
 F 3 "http://www.ti.com/lit/ds/symlink/lm2733.pdf" H 2450 3500 50  0001 C CNN
