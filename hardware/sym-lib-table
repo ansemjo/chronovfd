@@ -2,4 +2,5 @@
   (lib (name IVL2-7_5)(type Legacy)(uri ${KIPRJMOD}/extra_libraries/IVL2-7_5.lib)(options "")(descr ""))
   (lib (name LM4871MX_NOPB)(type Legacy)(uri ${KIPRJMOD}/extra_libraries/LM4871MX_NOPB.lib)(options "")(descr ""))
   (lib (name HV5812)(type Legacy)(uri ${KIPRJMOD}/extra_libraries/HV5812.lib)(options "")(descr ""))
+  (lib (name ansemjo)(type Legacy)(uri ${KIPRJMOD}/extra_libraries/ansemjo.lib)(options "")(descr ""))
 )
