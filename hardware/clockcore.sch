@@ -137,7 +137,7 @@ U 1 1 5F234DF1
 P 5200 4450
 F 0 "BT1" H 5318 4546 50  0000 L CNN
 F 1 "12mm Coin Cell" H 5318 4455 50  0000 L CNN
-F 2 "Battery:BatteryHolder_Keystone_3000_1x12mm" V 5200 4510 50  0001 C CNN
+F 2 "Battery:BatteryHolder_Keystone_1058_1x2032" V 5200 4510 50  0001 C CNN
 F 3 "https://www.keyelco.com/userAssets/file/M65p9.pdf" V 5200 4510 50  0001 C CNN
 	1    5200 4450
 	1    0    0    -1  
@@ -2082,7 +2082,7 @@ U 1 1 5F69F535
 P 10900 6850
 F 0 "A2" H 10900 7125 50  0001 C CNN
 F 1 "Logo_Open_Hardware_Small" H 10900 6625 50  0001 C CNN
-F 2 "Symbol:OSHW-Logo2_7.3x6mm_SilkScreen" H 10900 7144 50  0001 C CNN
+F 2 "Symbol:OSHW-Symbol_6.7x6mm_SilkScreen" H 10900 7144 50  0001 C CNN
 F 3 "https://github.com/ansemjo/chronovfd" H 10900 6850 50  0001 C CNN
 	1    10900 6850
 	1    0    0    -1  
