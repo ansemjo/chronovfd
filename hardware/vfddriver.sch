@@ -4,12 +4,12 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 2
-Title ""
-Date ""
+Title "VFD Driver Board"
+Date "2020-07-22"
 Rev "1"
 Comp ""
 Comment1 "Designed for AISLER 2-Layer Service"
-Comment2 ""
+Comment2 "Driving an IVL2-7/5 Display"
 Comment3 ""
 Comment4 ""
 $EndDescr
@@ -397,7 +397,7 @@ L Device:R_Small R14
 U 1 1 5F2820E7
 P 8650 5400
 F 0 "R14" H 8709 5446 50  0000 L CNN
-F 1 "4.7kΩ" H 8709 5355 50  0000 L CNN
+F 1 "47kΩ" H 8709 5355 50  0000 L CNN
 F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 8650 5400 50  0001 C CNN
 F 3 "~" H 8650 5400 50  0001 C CNN
 	1    8650 5400

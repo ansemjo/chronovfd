@@ -499,7 +499,7 @@ L Device:R_Small R10
 U 1 1 5F1CC732
 P 8800 3300
 F 0 "R10" V 8604 3300 50  0000 C CNN
-F 1 "10Ω" V 8695 3300 50  0000 C CNN
+F 1 "6.8Ω ¼W" V 8695 3300 50  0000 C CNN
 F 2 "Resistor_SMD:R_1206_3216Metric_Pad1.42x1.75mm_HandSolder" H 8800 3300 50  0001 C CNN
 F 3 "~" H 8800 3300 50  0001 C CNN
 	1    8800 3300
@@ -510,7 +510,7 @@ L Device:R_Small R11
 U 1 1 5F1CC9C1
 P 8800 3500
 F 0 "R11" V 8900 3500 50  0000 C CNN
-F 1 "10Ω" V 9000 3500 50  0000 C CNN
+F 1 "6.8Ω ¼W" V 9000 3500 50  0000 C CNN
 F 2 "Resistor_SMD:R_1206_3216Metric_Pad1.42x1.75mm_HandSolder" H 8800 3500 50  0001 C CNN
 F 3 "~" H 8800 3500 50  0001 C CNN
 	1    8800 3500
@@ -708,7 +708,7 @@ Wire Wire Line
 Wire Wire Line
 	6750 4500 6750 4550
 Text Notes 9000 2450 0    50   ~ 0
-R10 & R11 adjust filament voltage
+R10 & R11 adjust filament voltage\n(see filament_voltage.ods)
 Wire Notes Line
 	9800 2450 8800 2450
 Wire Notes Line
