@@ -3,7 +3,7 @@
 #include "hvshift.h"
 
 // brightness correction with repeated digits
-const static unsigned digits[] = { 0, 0, 1, 4, 2, 3 };
+const static unsigned digits[] = { 0, 1, 4, 2, 3 };
 const static uint16_t grids[GRIDS] = { G1, G2, G3, G4, Gd };
 volatile static uint16_t display[GRIDS];
 
@@ -29,7 +29,7 @@ void HV::begin() {
   TCCR1A  = 0; // reset control register A
   TCCR1B  = (1 << WGM12); // enable ctc mode
   TCCR1B |= (0 << CS12) | (1 << CS11) | (1 << CS10); // prescaling factor /64
-  OCR1A   = 0x0080; // set maximum counter value
+  OCR1A   = 0x0200; // set maximum counter value
   TIMSK1  = (1 << OCIE1A); // enable compare interrupt
   interrupts();
 

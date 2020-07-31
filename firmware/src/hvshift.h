@@ -3,9 +3,9 @@
 
 // bitbang spi pins to hv5812p
 #if defined(__PROTOCLOCK__)
-  #define HV_CLOCK  7
-  #define HV_DATA   9
-  #define HV_STROBE 8
+  #define HV_CLOCK  13
+  #define HV_DATA   11
+  #define HV_STROBE 12
 #else
   #error "no HV5812P pinout defined for this build"
 #endif

@@ -1,56 +1,20 @@
-#include <TinyWireS.h>
 #include "segments.h"
 #include "hvshift.h"
 
-// jumper pin to enable i2c programming mode
-#define JPROG 3
-#define progmode() (digitalRead(JPROG) == LOW)
-
-// i2c adresses
-#define ADDRESS 0x20
-#define RTCADDR 0x68
-
 // buffers for display contents
-static volatile char buf[GRIDS + 1];
-static volatile char tmp[GRIDS + 1];
-static volatile uint8_t reqpos = 0;
-
-void i2cRequester() {
-
-  TinyWireS.send(buf[reqpos]);
-  reqpos = (reqpos + 1) % GRIDS;
-
-}
-
-// receive buffer from i2c
-void i2cReceiver(uint8_t n) {
-
-  // buf[0] = '8';
-
-  if (n < 1) { return; }
-
-  unsigned i = TinyWireS.receive();
-  n--;
-
-  while (n--) {
-    buf[i] = TinyWireS.receive();
-    i++;
-  }
-
-}
+static char buf[GRIDS + 1];
+static uint16_t tmp[GRIDS + 1];
+static char text[64];
+static unsigned textlen = 0;
 
 void setup() {
 
   randomSeed(analogRead(0));
-  pinMode(JPROG, INPUT_PULLUP);
   hv.begin();
-
-  TinyWireS.begin(ADDRESS);
-  TinyWireS.onReceive(i2cReceiver);
-  TinyWireS.onRequest(i2cRequester);
-
-  // display i2c address
-  snprintf(buf, 6, ";c%02x:", ADDRESS);
+  
+  snprintf(buf, 6, "8888:");
+  snprintf(text, 64, "    Hello Wworld");
+  textlen = 17;
   
 }
 
@@ -61,9 +25,36 @@ uint8_t bcdDecode(uint8_t b) {
 
 void loop() {
 
-  TinyWireS_stop_check();
-  hv.text(buf);
+  //while (true) {
+  //  noise();
+  //  delay(50);
+  //}
 
+  unsigned pos = 0;
+  while (pos < textlen) {
+    hv.text(text+pos);
+    pos++;
+    delay(200);
+  }
+
+}
+
+// --------------------------------
+
+void milliscounter() {
+
+  long now = (millis() / 10) % 10000;
+  snprintf(buf, 6, "%04ld%s", now, (now % 200) < 100 ? ":" : " ");
+  hv.text(buf);
+  delay(72);
+
+}
+
+void noise() {
+  for (unsigned d = 0; d < GRIDS; d++) {
+    tmp[d] = random(0xffff) & SEGMENTS;
+  }
+  hv.raw(tmp);
 }
 
 void reveal(const char *buf, unsigned steps, unsigned wait) {
