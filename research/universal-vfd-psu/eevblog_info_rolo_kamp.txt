@@ -1,0 +1,51 @@
+1) For the tubes I ordered I've seen many people just use DC voltage. 
+   Since it's pretty low voltage at only 2.4 V with 65 mA per the datasheet and the tube is relatively 
+   short I might just get away with using a simple regulator and not waste time thinking about an AC design at all? 
+   You seem to be using DC in your IV-22 carrier PCB as well ..
+   
+   My opinion/experiance is that it's best to use AC on display's that contain multiple characters. 
+   I think most factory made clocks used a separate winding on the AC tranformer for the filament.
+   You can start with DC, develop your program and then see if AC is needed. Check for segment ghosting. 
+   AC is better on the long run, that is hard to check.     
+
+2) If I decide I want to "do it right" and I were to use your universal VFD PSU design rev2 though ..
+
+2.1) Do the coupling capacitors C4 and C5 really need to be that large? 
+     It just stands out to me that these capacitors are (physically) that large, while the HV rail uses relatively small ones.
+     
+     I have copied these values from other designs, I think it must be an electrolyte. 
+     The HV rail uses ceramic caps, they are mandatory with the LM2733 (info from the datasheet)
+
+2.2) How would I calculate the correct values for R7, R8, R10 and R11? 
+     You have given values for "13 char" and "8 char" displays in your schematic but 
+     neither do I know what voltage those displays use, nor would I know I'd calculate mine.
+     
+     I have an excel sheet to calculate HVout and determine R2 & R13
+     R8 and R11 have to be about 5 times the hot filament resistance, choose a nearby E value, not critical.
+     I have no calculation for R7 & R10, I did this empirical, using two resistor banks. 
+     I do have three tables with values for different display, you can use these as an indication for your application.
+     
+     
+3) Could you use something like an SN6501 Transformer Driver with an SMD transformer in place of the self-oscillating circuit with an audio amplifier? Looking at the application schematics in chapter 9 of its datasheet, it should be possible to use this driver without the rectifier diodes and treat the transformer outputs as filament connection points, no? R8, R11 and the bias voltage with the zener diode should work similarly, too. And the output voltage could be selectable by choosing the correct winding ratio?
+     Yes, should be possible, I did not go this route. Would be a nice solution. 
+     Biggest issue is parts availability, SMD transformers and the SN6501 are less available to me.
+     
+     
+     
+Some random tips:
+You can experiment with the zener voltage, depends on the display. 2.7V, 3.3V, 4.7V are common values     
+You have to measure the actual HV between HVout and the cathode of D2. You will find that it less then HVout to gnd. 
+Difference is the zener voltage.
+
+The coils are size 1210
+All ceramic caps are size 0805
+All resistors (except R7 & R10) are size 0805
+R7 & R10 are size 1206
+Please do not buy the LM4871 or LM2733 in China, they can be fake.
+D1 is package SOD-123
+D2 is package SOD-80
+ 
+See bom.xlsx for reichelt partnumbers coils, IC's and electolytic caps
+
+     
+     
