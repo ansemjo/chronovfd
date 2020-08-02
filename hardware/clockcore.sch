@@ -246,21 +246,6 @@ Text GLabel 3850 5050 0    50   Input ~ 0
 SDA
 Text GLabel 3850 4950 0    50   Input ~ 0
 SCL
-$Comp
-L Device:Crystal_Small Y1
-U 1 1 5F1C482B
-P 3900 5250
-F 0 "Y1" H 3900 5550 50  0000 C CNN
-F 1 "32.768Hz, 12.5pF, 45kΩ" H 3750 5450 50  0000 C CNN
-F 2 "Crystal:Crystal_SMD_MicroCrystal_MS1V-T1K" H 3900 5250 50  0001 C CNN
-F 3 "https://ecsxtal.com/store/pdf/ecs-2x6-flxr.pdf" H 3900 5250 50  0001 C CNN
-	1    3900 5250
-	-1   0    0    1   
-$EndComp
-Wire Wire Line
-	3750 5350 3750 5250
-Wire Wire Line
-	3750 5250 3800 5250
 Text Label 4000 5250 0    50   ~ 0
 CRYSTAL_P
 Text Label 4000 5350 0    50   ~ 0
@@ -1357,10 +1342,6 @@ F 3 "https://www.ftdichip.com/Support/Documents/DataSheets/ICs/DS_FT231X.pdf" H 
 $EndComp
 Wire Notes Line
 	6850 5850 3250 5850
-Wire Wire Line
-	3750 5350 4450 5350
-Wire Wire Line
-	4000 5250 4450 5250
 $Comp
 L Timer_RTC:DS1307ZN+ U4
 U 1 1 5F1CD4AD
@@ -2155,4 +2136,38 @@ Text GLabel 5050 2700 2    50   Input ~ 0
 TEMP
 Wire Wire Line
 	4950 2700 5050 2700
+$Comp
+L Device:Crystal_GND3 Y1
+U 1 1 5F35C657
+P 3850 5300
+F 0 "Y1" V 4000 5100 50  0000 L CNN
+F 1 "32.768Hz, 12.5pF, 45kΩ" V 4100 4950 50  0000 L CNN
+F 2 "Crystal:Crystal_SMD_MicroCrystal_MS1V-T1K" H 3850 5300 50  0001 C CNN
+F 3 "https://ecsxtal.com/store/pdf/ecs-2x6-flxr.pdf" H 3850 5300 50  0001 C CNN
+	1    3850 5300
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4000 5250 4450 5250
+Wire Wire Line
+	3850 5150 4000 5150
+Wire Wire Line
+	4000 5150 4000 5250
+Wire Wire Line
+	3850 5450 4000 5450
+Wire Wire Line
+	4000 5450 4000 5350
+Wire Wire Line
+	4000 5350 4450 5350
+$Comp
+L power:GND #PWR?
+U 1 1 5F38FE2E
+P 3650 5300
+F 0 "#PWR?" H 3650 5050 50  0001 C CNN
+F 1 "GND" H 3655 5127 50  0000 C CNN
+F 2 "" H 3650 5300 50  0001 C CNN
+F 3 "" H 3650 5300 50  0001 C CNN
+	1    3650 5300
+	0    1    1    0   
+$EndComp
 $EndSCHEMATC
