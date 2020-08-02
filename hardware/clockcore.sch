@@ -4,13 +4,13 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title ""
-Date ""
-Rev "1"
+Title "Clock Core"
+Date "2020-08-02"
+Rev "1.0"
 Comp ""
 Comment1 "Designed for AISLER 2-Layer Service"
-Comment2 ""
-Comment3 ""
+Comment2 "Made for IVL2-7/5 VFD Driver Board"
+Comment3 "ESP32 + RTC"
 Comment4 ""
 $EndDescr
 $Comp
@@ -1842,58 +1842,58 @@ Text Notes 2250 3750 0    50   ~ 0
 $Comp
 L power:GND #PWR03
 U 1 1 5F700789
-P 2450 1300
-F 0 "#PWR03" H 2450 1050 50  0001 C CNN
-F 1 "GND" H 2455 1127 50  0000 C CNN
-F 2 "" H 2450 1300 50  0001 C CNN
-F 3 "" H 2450 1300 50  0001 C CNN
-	1    2450 1300
+P 2650 1000
+F 0 "#PWR03" H 2650 750 50  0001 C CNN
+F 1 "GND" H 2655 827 50  0000 C CNN
+F 2 "" H 2650 1000 50  0001 C CNN
+F 3 "" H 2650 1000 50  0001 C CNN
+	1    2650 1000
 	-1   0    0    1   
 $EndComp
 $Comp
 L power:GND #PWR010
 U 1 1 5F700DB1
-P 1850 1300
-F 0 "#PWR010" H 1850 1050 50  0001 C CNN
-F 1 "GND" H 1855 1127 50  0000 C CNN
-F 2 "" H 1850 1300 50  0001 C CNN
-F 3 "" H 1850 1300 50  0001 C CNN
-	1    1850 1300
+P 2050 1000
+F 0 "#PWR010" H 2050 750 50  0001 C CNN
+F 1 "GND" H 2055 827 50  0000 C CNN
+F 2 "" H 2050 1000 50  0001 C CNN
+F 3 "" H 2050 1000 50  0001 C CNN
+	1    2050 1000
 	-1   0    0    1   
 $EndComp
 $Comp
 L power:+3.3V #PWR02
 U 1 1 5F713013
-P 2700 1850
-F 0 "#PWR02" H 2700 1700 50  0001 C CNN
-F 1 "+3.3V" H 2715 2023 50  0000 C CNN
-F 2 "" H 2700 1850 50  0001 C CNN
-F 3 "" H 2700 1850 50  0001 C CNN
-	1    2700 1850
+P 2900 1550
+F 0 "#PWR02" H 2900 1400 50  0001 C CNN
+F 1 "+3.3V" H 2915 1723 50  0000 C CNN
+F 2 "" H 2900 1550 50  0001 C CNN
+F 3 "" H 2900 1550 50  0001 C CNN
+	1    2900 1550
 	-1   0    0    1   
 $EndComp
 $Comp
 L power:+5V #PWR08
 U 1 1 5F713FBF
-P 2450 1850
-F 0 "#PWR08" H 2450 1700 50  0001 C CNN
-F 1 "+5V" H 2465 2023 50  0000 C CNN
-F 2 "" H 2450 1850 50  0001 C CNN
-F 3 "" H 2450 1850 50  0001 C CNN
-	1    2450 1850
+P 2650 1550
+F 0 "#PWR08" H 2650 1400 50  0001 C CNN
+F 1 "+5V" H 2665 1723 50  0000 C CNN
+F 2 "" H 2650 1550 50  0001 C CNN
+F 3 "" H 2650 1550 50  0001 C CNN
+	1    2650 1550
 	-1   0    0    1   
 $EndComp
-Text GLabel 2400 1450 2    50   Input ~ 0
+Text GLabel 2600 1150 2    50   Input ~ 0
 SDA
-Text GLabel 2400 1550 2    50   Input ~ 0
+Text GLabel 2600 1250 2    50   Input ~ 0
 SCL
-Text GLabel 1900 1450 0    50   Input ~ 0
+Text GLabel 2100 1150 0    50   Input ~ 0
 TXD0
-Text GLabel 1900 1550 0    50   Input ~ 0
+Text GLabel 2100 1250 0    50   Input ~ 0
 RXD0
-Text GLabel 1900 1650 0    50   Input ~ 0
+Text GLabel 2100 1350 0    50   Input ~ 0
 RTS
-Text GLabel 1900 1750 0    50   Input ~ 0
+Text GLabel 2100 1450 0    50   Input ~ 0
 DTR
 $Comp
 L ansemjo:ahoi A1
@@ -2014,8 +2014,8 @@ Wire Notes Line
 	3150 600  3150 2450
 Wire Notes Line
 	3150 2450 550  2450
-Text Notes 1700 2400 0    50   ~ 0
-Various Headers and Optional Parts
+Text Notes 2050 2400 0    50   ~ 0
+Headers and Optional Parts
 Text GLabel 5050 1100 2    50   Input ~ 0
 GPIO0
 Wire Wire Line
@@ -2037,7 +2037,6 @@ Wire Wire Line
 	5050 2300 4950 2300
 Wire Wire Line
 	4950 2400 5050 2400
-NoConn ~ 4950 2700
 Wire Notes Line
 	3250 600  3250 4000
 Wire Notes Line
@@ -2050,30 +2049,30 @@ Text Notes 5950 3950 0    50   ~ 0
 ESP32 WROOM Module
 NoConn ~ 1200 5350
 Wire Wire Line
-	2450 1300 2450 1350
+	2650 1000 2650 1050
 Wire Wire Line
-	2450 1350 2400 1350
+	2650 1050 2600 1050
 Wire Wire Line
-	1900 1350 1850 1350
+	2100 1050 2050 1050
 Wire Wire Line
-	1850 1350 1850 1300
+	2050 1050 2050 1000
 Wire Wire Line
-	2400 1750 2450 1750
+	2600 1450 2650 1450
 Wire Wire Line
-	2450 1750 2450 1850
+	2650 1450 2650 1550
 Wire Wire Line
-	2400 1650 2700 1650
+	2600 1350 2900 1350
 Wire Wire Line
-	2700 1650 2700 1850
+	2900 1350 2900 1550
 $Comp
 L Connector_Generic:Conn_02x05_Odd_Even J2
 U 1 1 5F5E992B
-P 2100 1550
-F 0 "J2" H 2150 1967 50  0000 C CNN
-F 1 "Ext" H 2150 1876 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical" H 2100 1550 50  0001 C CNN
-F 3 "~" H 2100 1550 50  0001 C CNN
-	1    2100 1550
+P 2300 1250
+F 0 "J2" H 2350 1667 50  0000 C CNN
+F 1 "Ext" H 2350 1576 50  0000 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical" H 2300 1250 50  0001 C CNN
+F 3 "~" H 2300 1250 50  0001 C CNN
+	1    2300 1250
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -2087,8 +2086,6 @@ F 3 "https://github.com/ansemjo/chronovfd" H 10900 6850 50  0001 C CNN
 	1    10900 6850
 	1    0    0    -1  
 $EndComp
-Text Notes 7050 900  0    50   ~ 0
-TODO\n----------------------------\n- Diode between VBUS and 5V
 Wire Wire Line
 	8500 1900 8300 1900
 Wire Wire Line
@@ -2119,4 +2116,43 @@ Wire Wire Line
 Connection ~ 8300 1900
 Wire Wire Line
 	9450 1900 9650 1900
+$Comp
+L Sensor_Temperature:DS18B20U U7
+U 1 1 5F27C2CD
+P 1550 1850
+F 0 "U7" V 1200 1800 50  0000 R CNN
+F 1 "DS18B20U" V 1300 2050 50  0000 R CNN
+F 2 "Package_SO:MSOP-8_3x3mm_P0.65mm" H 600 1600 50  0001 C CNN
+F 3 "http://datasheets.maximintegrated.com/en/ds/DS18B20.pdf" H 1400 2100 50  0001 C CNN
+	1    1550 1850
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3.3V #PWR0101
+U 1 1 5F27DD47
+P 1550 1550
+F 0 "#PWR0101" H 1550 1400 50  0001 C CNN
+F 1 "+3.3V" H 1565 1723 50  0000 C CNN
+F 2 "" H 1550 1550 50  0001 C CNN
+F 3 "" H 1550 1550 50  0001 C CNN
+	1    1550 1550
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR0102
+U 1 1 5F27E074
+P 1550 2150
+F 0 "#PWR0102" H 1550 1900 50  0001 C CNN
+F 1 "GND" H 1555 1977 50  0000 C CNN
+F 2 "" H 1550 2150 50  0001 C CNN
+F 3 "" H 1550 2150 50  0001 C CNN
+	1    1550 2150
+	1    0    0    -1  
+$EndComp
+Text GLabel 1850 1850 2    50   Input ~ 0
+TEMP
+Text GLabel 5050 2700 2    50   Input ~ 0
+TEMP
+Wire Wire Line
+	4950 2700 5050 2700
 $EndSCHEMATC
