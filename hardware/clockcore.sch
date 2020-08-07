@@ -136,7 +136,7 @@ L Device:Battery_Cell BT1
 U 1 1 5F234DF1
 P 5200 4450
 F 0 "BT1" H 5318 4546 50  0000 L CNN
-F 1 "12mm Coin Cell" H 5318 4455 50  0000 L CNN
+F 1 "Keystone 1058 (CR2032)" H 5318 4455 50  0000 L CNN
 F 2 "Battery:BatteryHolder_Keystone_1058_1x2032" V 5200 4510 50  0001 C CNN
 F 3 "https://www.keyelco.com/userAssets/file/M65p9.pdf" V 5200 4510 50  0001 C CNN
 	1    5200 4450
