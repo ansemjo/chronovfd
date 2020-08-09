@@ -4,6 +4,7 @@
 
 // brightness correction with repeated digits
 const static unsigned digits[] = { 0, 1, 4, 2, 3 };
+//const static unsigned digits[] = { 0, 0, 0, 1, 1, 4, 2, 3 }; // brightness correction for hendriks display
 const static uint16_t grids[GRIDS] = { G1, G2, G3, G4, Gd };
 volatile static uint16_t display[GRIDS];
 
