@@ -18,21 +18,8 @@ ISR(TIMER1_COMPA_vect) {
 // initialize pin directions and setup timer
 void HV::begin() {
 
-  // define appropriate pins as outputs
-  pinMode(HV_CLOCK,  OUTPUT);
-  pinMode(HV_DATA,   OUTPUT);
-  pinMode(HV_STROBE, OUTPUT);
+  HVSPI.begin(25, 26, 0, 1);
   hv.clear();
-
-  // enable output compare interrupts on timer 1
-  noInterrupts();
-  TCNT1   = 0; // reset counter
-  TCCR1A  = 0; // reset control register A
-  TCCR1B  = (1 << WGM12); // enable ctc mode
-  TCCR1B |= (0 << CS12) | (1 << CS11) | (1 << CS10); // prescaling factor /64
-  OCR1A   = 0x0200; // set maximum counter value
-  TIMSK1  = (1 << OCIE1A); // enable compare interrupt
-  interrupts();
 
 }
 
