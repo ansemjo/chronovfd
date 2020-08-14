@@ -8,11 +8,16 @@
 // anode grids / digits
 //  8   8   :   8   8
 //  G1  G2  Gd  G3  G4
-#define G1 (1 <<  0)
-#define G2 (1 << 13)
-#define Gd (1 << 11)
-#define G3 (1 <<  8)
-#define G4 (1 <<  4)
+// #define G1 (1 <<  0)
+// #define G2 (1 << 13)
+// #define Gd (1 << 11)
+// #define G3 (1 <<  8)
+// #define G4 (1 <<  4)
+#define G1 (1 << 13)
+#define G2 (1 <<  0)
+#define Gd (1 <<  2)
+#define G3 (1 <<  5)
+#define G4 (1 <<  9)
 
 // anode segments
 //       a
@@ -23,15 +28,24 @@
 //  e │    │
 //    │  d │ c   ■ db
 //     ────
-#define Aa  (1 <<  5)
-#define Ab  (1 <<  7)
-#define Ac  (1 << 12)
-#define Ad  (1 <<  9)
-#define Ae  (1 <<  3)
-#define Af  (1 <<  6)
-#define Ag  (1 <<  2)
-#define Adt (1 <<  1)
-#define Adb (1 << 10)
+// #define Aa  (1 <<  5)
+// #define Ab  (1 <<  7)
+// #define Ac  (1 << 12)
+// #define Ad  (1 <<  9)
+// #define Ae  (1 <<  3)
+// #define Af  (1 <<  6)
+// #define Ag  (1 <<  2)
+// #define Adt (1 <<  1)
+// #define Adb (1 << 10)
+#define Aa  (1 <<  8)
+#define Ab  (1 <<  6)
+#define Ac  (1 <<  1)
+#define Ad  (1 <<  4)
+#define Ae  (1 << 10)
+#define Af  (1 <<  7)
+#define Ag  (1 << 11)
+#define Adt (1 << 12)
+#define Adb (1 <<  3)
 #define SEGMENTS (Aa|Ab|Ac|Ad|Ae|Af|Ag|Adt|Adb)
 
 // some constant numbers
@@ -39,6 +53,6 @@
 #define SHIFTWIDTH 14 // number of bits to shift each time
 
 // character lookup for segment mapping
-unsigned lookup(char ch);
+uint16_t lookup(char ch);
 
 #endif

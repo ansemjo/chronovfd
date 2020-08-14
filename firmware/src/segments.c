@@ -1,7 +1,8 @@
+#include <stdio.h>
 #include "segments.h"
 
 // character lookup for segment mapping
-unsigned lookup(char ch) {
+uint16_t lookup(char ch) {
   switch (ch) {
     // numbers
     case '0': return Aa|Ab|Ac|Ad|Ae|Af;
