@@ -493,20 +493,6 @@ F 6 "Yageo" H 4100 7150 50  0001 C CNN "Manufacturer"
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:LED_Small D2
-U 1 1 5F2EBC41
-P 4100 6900
-F 0 "D2" V 4146 6830 50  0000 R CNN
-F 1 "PWR LED" V 4055 6830 50  0000 R CNN
-F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4100 6900 50  0001 C CNN
-F 3 "~" V 4100 6900 50  0001 C CNN
-F 4 "732-4985-1-ND" H 4100 6900 50  0001 C CNN "Digi-Key_PN"
-F 5 "150080SS75000" H 4100 6900 50  0001 C CNN "MPN"
-F 6 "Würth" H 4100 6900 50  0001 C CNN "Manufacturer"
-	1    4100 6900
-	0    -1   -1   0   
-$EndComp
-$Comp
 L power:GND #PWR025
 U 1 1 5F2FA059
 P 4700 7300
@@ -530,20 +516,6 @@ F 5 "RC0805FR-071KL" H 4700 7150 50  0001 C CNN "MPN"
 F 6 "Yageo" H 4700 7150 50  0001 C CNN "Manufacturer"
 	1    4700 7150
 	1    0    0    -1  
-$EndComp
-$Comp
-L Device:LED_Small D3
-U 1 1 5F2FA06D
-P 4700 6900
-F 0 "D3" V 4746 6830 50  0000 R CNN
-F 1 "GPIO LED" V 4655 6830 50  0000 R CNN
-F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4700 6900 50  0001 C CNN
-F 3 "~" V 4700 6900 50  0001 C CNN
-F 4 "732-4986-1-ND" H 4700 6900 50  0001 C CNN "Digi-Key_PN"
-F 5 "150080VS75000" H 4700 6900 50  0001 C CNN "MPN"
-F 6 "Würth" H 4700 6900 50  0001 C CNN "Manufacturer"
-	1    4700 6900
-	0    -1   -1   0   
 $EndComp
 $Comp
 L power:+3.3V #PWR020
@@ -2319,5 +2291,37 @@ F 2 "" H 3650 5300 50  0001 C CNN
 F 3 "" H 3650 5300 50  0001 C CNN
 	1    3650 5300
 	0    1    1    0   
+$EndComp
+Text Notes 1850 2100 0    50   ~ 0
+TODO: forgot onewire pullup\nis internal enough?
+Text Notes 4300 6250 0    50   ~ 0
+TODO: properly match\nbrightness. PWR (red)\nis brighter
+$Comp
+L Device:LED_Small D3
+U 1 1 5F2FA06D
+P 4700 6900
+F 0 "D3" V 4746 6830 50  0000 R CNN
+F 1 "GPIO LED" V 4655 6830 50  0000 R CNN
+F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4700 6900 50  0001 C CNN
+F 3 "~" V 4700 6900 50  0001 C CNN
+F 4 "732-4986-1-ND" H 4700 6900 50  0001 C CNN "Digi-Key_PN"
+F 5 "150080VS75000" H 4700 6900 50  0001 C CNN "MPN"
+F 6 "Würth" H 4700 6900 50  0001 C CNN "Manufacturer"
+	1    4700 6900
+	0    -1   -1   0   
+$EndComp
+$Comp
+L Device:LED_Small D2
+U 1 1 5F2EBC41
+P 4100 6900
+F 0 "D2" V 4146 6830 50  0000 R CNN
+F 1 "PWR LED" V 4055 6830 50  0000 R CNN
+F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4100 6900 50  0001 C CNN
+F 3 "~" V 4100 6900 50  0001 C CNN
+F 4 "732-4985-1-ND" H 4100 6900 50  0001 C CNN "Digi-Key_PN"
+F 5 "150080SS75000" H 4100 6900 50  0001 C CNN "MPN"
+F 6 "Würth" H 4100 6900 50  0001 C CNN "Manufacturer"
+	1    4100 6900
+	0    -1   -1   0   
 $EndComp
 $EndSCHEMATC
