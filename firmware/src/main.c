@@ -18,27 +18,11 @@
 #include "vfddriver.h"
 #include "segments.h"
 
-// define interface to the hv5812
-#define VFD_SPI_HOST    HSPI_HOST
-#define VFD_PIN_ENABLE  GPIO_NUM_19
-#define VFD_PIN_CLOCK   GPIO_NUM_25
-#define VFD_PIN_DATA    GPIO_NUM_26
-#define VFD_PIN_STROBE  GPIO_NUM_27
-#define VFD_PIN_BLANK   GPIO_NUM_18
-#define VFD_PIN_FILSHDN GPIO_NUM_17
-#define VFD_PIN_HVSHDN  GPIO_NUM_16
-
-// #define HVMUX_GROUP   0
-// #define HVMUX_ISRG    TIMERG0
-// #define HVMUX_IDX     0
-// #define HVMUX_DIVIDER 80
-
 // turn on the usr led, yay
 #define LED 5
 void led_init() {
   gpio_set_direction(LED, GPIO_MODE_OUTPUT);
-  // gpio_set_level(LED, 1);
-  // ESP_LOGI("LED", "turned on");
+  gpio_set_level(LED, 1);
 }
 
 void app_main() {
@@ -56,21 +40,21 @@ void app_main() {
   led_init();
   
   // init the vfd driver
-  vfd_pins_t pins = {
-    .enable = VFD_PIN_ENABLE,
-    .clock = VFD_PIN_CLOCK,
-    .data = VFD_PIN_DATA,
-    .strobe = VFD_PIN_STROBE,
-    .blank = VFD_PIN_BLANK,
-    .fil_shdn = VFD_PIN_FILSHDN,
-    .hv_shdn = VFD_PIN_HVSHDN,
-  };
-  vfd_handle_t vfd = vfd_init(VFD_SPI_HOST, pins, "ivl2-7/5");
+  const vfd_handle_t vfd = vfd_init(NULL, "ivl2-7/5");
 
-  // example, display HHHH statically
-  uint16_t data = segment_lookup('H') | G1|G2|G4|G5;
-  vfd_data(&vfd, data);
+  // test, display 88:88 statically
+  vfd_data(&vfd, 0xffff);
+  ESP_LOGI("main", "display test, full on");
 
+  vTaskDelay(1000 / portTICK_RATE_MS);
+
+  vfd_mux_init();
+  ESP_LOGI("main", "begin digit multiplexing");
+  vfd_rawbuf[0] = segment_lookup('H');
+  vfd_rawbuf[1] = segment_lookup('E');
+  vfd_rawbuf[3] = segment_lookup('L');
+  vfd_rawbuf[4] = segment_lookup('O');
+  ESP_LOGI("main", "HELO");
 
 }
 

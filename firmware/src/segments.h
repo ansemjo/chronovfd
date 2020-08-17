@@ -22,10 +22,11 @@ hv5812 pin:     10   9   8   7   6   5   4   3   2   1  11  12  13  14
 #define G3 (1 <<  2)
 #define G4 (1 <<  5)
 #define G5 (1 <<  9)
-#define GRIDS (G1|G2|G3|G4|G5) // used for masking
+#define GRIDS 5
+#define GRIDMASK (G1|G2|G3|G4|G5)
 
 // array of grids for looping
-const uint16_t grids[5];
+const uint16_t grids[GRIDS];
 
 // anode segments:
 //       a
@@ -45,7 +46,7 @@ const uint16_t grids[5];
 #define Ag  (1 << 11)
 #define Adt (1 << 12)
 #define Adb (1 <<  3)
-#define SEGMENTS (Aa|Ab|Ac|Ad|Ae|Af|Ag|Adt|Adb) // used for masking
+#define SEGMENTMASK (Aa|Ab|Ac|Ad|Ae|Af|Ag|Adt|Adb)
 
 // character lookup for segment mapping
 uint16_t segment_lookup(char ch);

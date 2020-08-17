@@ -2,7 +2,7 @@
 #include "segments.h"
 
 // array of grids for looping
-const uint16_t grids[5] = { G1, G2, G3, G4, G5 };
+const uint16_t grids[GRIDS] = { G1, G2, G3, G4, G5 };
 
 // character segment_lookup for segment mapping
 uint16_t segment_lookup(char ch) {
