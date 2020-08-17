@@ -11,12 +11,6 @@
 #define VFD_PIN_FILSHDN GPIO_NUM_17
 #define VFD_PIN_HVSHDN  GPIO_NUM_16
 
-// default digit multiplex timer settings
-#define HVMUX_GROUP   0
-#define HVMUX_ISRG    TIMERG0
-#define HVMUX_IDX     0
-#define HVMUX_DIVIDER 16
-
 // vfddriver_pins_t holds relevant gpio numbers
 // connected to the hv5812 display driver
 typedef struct vfd_pin_t {
@@ -33,14 +27,18 @@ typedef struct vfd_pin_t {
 // vfddriver_handle_t holds a handle to the instantiated
 // spi device and the relevant gpio pins
 typedef struct vfd_handle_t {
-  spi_device_handle_t spi;
+  char *tag;
   vfd_pin_t pin;
+  spi_device_handle_t spi;
+  esp_timer_handle_t mux;
+  uint16_t buf[5];
+  int pos;
 } vfd_handle_t;
 
-vfd_handle_t vfd_init(vfd_pin_t *pin, char *tag);
-void vfd_data(vfd_handle_t *vfd, uint16_t data);
+vfd_handle_t* vfd_init(vfd_pin_t pin, char *tag);
+void vfd_spi_data(vfd_handle_t *vfd, uint16_t data);
+void vfd_mux_init(vfd_handle_t *vfd, uint64_t period_us);
 
-uint16_t vfd_rawbuf[5];
-void vfd_mux_init();
+vfd_handle_t* chronovfd_init();
 
 #endif // _VFDDRIVER_H_

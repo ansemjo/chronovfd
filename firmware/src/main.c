@@ -14,6 +14,7 @@
 #include "driver/gpio.h"
 #include "driver/periph_ctrl.h"
 #include "driver/timer.h"
+#include "driver/ledc.h"
 
 #include "vfddriver.h"
 #include "segments.h"
@@ -38,23 +39,40 @@ void app_main() {
   ESP_ERROR_CHECK(err);
 
   led_init();
-  
-  // init the vfd driver
-  const vfd_handle_t vfd = vfd_init(NULL, "ivl2-7/5");
+  vfd_handle_t* vfd = chronovfd_init();
 
-  // test, display 88:88 statically
-  vfd_data(&vfd, 0xffff);
-  ESP_LOGI("main", "display test, full on");
+  // test pwm dimming of shdn pins
+  vTaskDelay(2000 / portTICK_RATE_MS);
+  ledc_timer_config_t pwmcfg = {
+    .freq_hz = 60000,
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .timer_num = LEDC_TIMER_0,
+    .duty_resolution = 8,
+    .clk_cfg = LEDC_AUTO_CLK,
+  };
+  ledc_timer_config(&pwmcfg);
+  ledc_channel_config_t pwmchan = {
+    .channel = LEDC_CHANNEL_0,
+    .duty = 0,
+    .gpio_num = VFD_PIN_FILSHDN,
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .hpoint = 0,
+    .timer_sel = LEDC_TIMER_0,
+  };
+  ledc_channel_config(&pwmchan);
+  ESP_LOGI("pwm", "initialized");
 
-  vTaskDelay(1000 / portTICK_RATE_MS);
+  ledc_fade_func_install(0);
+  vTaskDelay(2000 / portTICK_RATE_MS);
+  while (1) {
+    ESP_LOGI("pwm", "dimming down to 255");
+    ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 255, 5000, LEDC_FADE_WAIT_DONE);
+    vTaskDelay(2000 / portTICK_RATE_MS);
+    ESP_LOGI("pwm", "dimming up to 160");
+    ledc_set_fade_time_and_start(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 0, 5000, LEDC_FADE_WAIT_DONE);
+    vTaskDelay(2000 / portTICK_RATE_MS);
+  };
 
-  vfd_mux_init();
-  ESP_LOGI("main", "begin digit multiplexing");
-  vfd_rawbuf[0] = segment_lookup('H');
-  vfd_rawbuf[1] = segment_lookup('E');
-  vfd_rawbuf[3] = segment_lookup('L');
-  vfd_rawbuf[4] = segment_lookup('O');
-  ESP_LOGI("main", "HELO");
 
 }
 
