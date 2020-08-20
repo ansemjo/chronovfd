@@ -38,6 +38,7 @@ typedef struct vfd_handle_t {
 vfd_handle_t* vfd_init(vfd_pin_t pin, char *tag);
 void vfd_spi_data(vfd_handle_t *vfd, uint16_t data);
 void vfd_mux_init(vfd_handle_t *vfd, uint64_t period_us);
+void vfd_text(vfd_handle_t *vfd, char *text);
 
 vfd_handle_t* chronovfd_init();
 

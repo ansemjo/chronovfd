@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -15,6 +16,7 @@
 #include "driver/periph_ctrl.h"
 #include "driver/timer.h"
 #include "driver/ledc.h"
+#include "driver/adc.h"
 
 #include "vfddriver.h"
 #include "segments.h"
@@ -26,23 +28,28 @@ void led_init() {
   gpio_set_level(LED, 1);
 }
 
-void app_main() {
+uint16_t sma_buf[20];
+unsigned sma_n = 20;
+unsigned sma_pos = 0;
+void sma_init(uint16_t init) {
+  for (int i = 0; i < sma_n; i++) {
+    sma_buf[i] = init;
+  };
+  sma_pos = 1;
+}
+uint16_t sma_next(uint16_t next) {
+  sma_buf[sma_pos] = next;
+  uint32_t sum = 0;
+  for (int i = 0; i < sma_n; i++) {
+    sum += sma_buf[i];
+  };
+  sma_pos = (sma_pos + 1) % sma_n;
+  return sum / sma_n;
+}
 
-  esp_err_t err;
-    
-  // init default nonvolatile storage
-  err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    err = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK(err);
+// test pwm dimming of filament via power supply shutdown pin
+void filament_dimmer_init() {
 
-  led_init();
-  vfd_handle_t* vfd = chronovfd_init();
-
-  // test pwm dimming of shdn pins
-  vTaskDelay(2000 / portTICK_RATE_MS);
   ledc_timer_config_t pwmcfg = {
     .freq_hz = 60000,
     .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -62,6 +69,83 @@ void app_main() {
   ledc_channel_config(&pwmchan);
   ESP_LOGI("pwm", "initialized");
 
+}
+
+// taken from arduino
+long map(long x, long in_min, long in_max, long out_min, long out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+long capped(long a, long b) {
+  return (a > b) ? b : a;
+}
+
+// display the current runtime in MM:SS on display
+void runtime(vfd_handle_t *vfd) {
+
+  static time_t now;
+  static struct tm *timeinfo;
+  static char timebuf[32];
+  
+  time(&now);
+  timeinfo = localtime(&now);
+  strftime(timebuf, sizeof(timebuf), "%M:%S", timeinfo);
+  vfd_text(vfd, timebuf);
+  
+}
+
+void app_main() {
+
+  esp_err_t err;
+    
+  // init default nonvolatile storage
+  err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
+  // led_init();
+  vfd_handle_t* vfd = chronovfd_init();
+
+  filament_dimmer_init();
+
+  // Pin 4, SENSOR_VP == GPIO 36 == ADC1 Channel 0
+  gpio_set_direction(ADC1_CHANNEL_0_GPIO_NUM, GPIO_MODE_INPUT);
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_0);
+  int value;
+  int duty;
+  char adcbuf[32];
+  sma_init(adc1_get_raw(ADC1_CHANNEL_0));
+
+  while (true) {
+
+    value = sma_next(adc1_get_raw(ADC1_CHANNEL_0));
+    duty = 190 - capped(map(value, 0, 400, 0, 190), 190);
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
+    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+    
+    // snprintf(adcbuf, sizeof(adcbuf), "%04d", duty);
+    // for (int c = 4; c >= 2; c--) {
+    //   adcbuf[c+1] = adcbuf[c];
+    // }
+    // vfd_text(vfd, adcbuf);
+
+    runtime(vfd);
+    vTaskDelay(100 / portTICK_RATE_MS);
+  }
+
+
+}
+
+
+
+// --------------------------- snippets -------------------------------
+
+void filament_dimmer_fader() {
+
   ledc_fade_func_install(0);
   vTaskDelay(2000 / portTICK_RATE_MS);
   while (1) {
@@ -73,6 +157,4 @@ void app_main() {
     vTaskDelay(2000 / portTICK_RATE_MS);
   };
 
-
 }
-

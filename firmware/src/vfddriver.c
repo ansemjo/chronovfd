@@ -12,12 +12,12 @@
 
 // ------------------------ spi driver ------------------------
 
-// set strobe low before transaction
+// set strobe low before spi transaction
 void vfd_spi_strobe_low(spi_transaction_t *t) {
   gpio_set_level(((vfd_handle_t*)t->user)->pin.strobe, 0);
 }
 
-// set strobe high after transaction to latch contents
+// set strobe high after spi transaction to latch contents
 void vfd_spi_strobe_high(spi_transaction_t *t) {
   gpio_set_level(((vfd_handle_t*)t->user)->pin.strobe, 1);
 }
@@ -42,6 +42,7 @@ void vfd_spi_data(vfd_handle_t *vfd, uint16_t data) {
 
 }
 
+// initialize spi interface to hv5812 display driver with auxiliary pins
 vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
 
   // allocate new handle on heap
@@ -62,7 +63,8 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
   
   // add the device on the bus
   spi_device_interface_config_t devcfg = {
-    .clock_speed_hz = 5*1000*1000, // hv5812 maximum @ 125°C, 5V
+    // HV5812 maximum rated frequency @ 125°C, 5V = 5 MHz
+    .clock_speed_hz = 20*1000*1000,
     .mode = 0,
     .pre_cb  = vfd_spi_strobe_low,
     .post_cb = vfd_spi_strobe_high,
@@ -71,7 +73,7 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
     .dummy_bits = 0,
     .duty_cycle_pos = 128,
     .spics_io_num = -1,
-    .queue_size=1,
+    .queue_size = 1,
   };
   ESP_ERROR_CHECK(spi_bus_add_device(pin.host, &devcfg, &vfd->spi));
   ESP_LOGI(tag, "device added; strobe=%d", pin.strobe);
@@ -96,6 +98,8 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
 
 uint16_t vfd_grids[5] = { G1, G2, G3, G4, G5 };
 
+// periodically called function which does time-multiplexing of the
+// individual digits on the display from contents of vfd->buf
 void vfd_digitmux(void *arg) {
   vfd_handle_t *vfd = arg;
   int p = vfd->pos;
@@ -104,6 +108,7 @@ void vfd_digitmux(void *arg) {
   vfd->pos = (p + 1) % 5;
 }
 
+// create a periodic timer for digit time multiplexing
 void vfd_mux_init(vfd_handle_t *vfd, uint64_t period_us) {
 
   vfd->pos = 0;
@@ -118,9 +123,21 @@ void vfd_mux_init(vfd_handle_t *vfd, uint64_t period_us) {
 
 }
 
+// write text into the buffer from which digit multiplexing is performed.
+// text must point to a char array with $GRIDS elements
+void vfd_text(vfd_handle_t *vfd, char *text) {
+
+  int i = 0;
+  while ((i < GRIDS) && (text[i] != 0)) {
+    vfd->buf[i] = segment_lookup(text[i]);
+    i++;
+  };
+
+}
+
 // ------------------------ convenience ------------------------
 
-// convenience function to init defaults on chronovfd
+// convenience function to init display with defaults on chronovfd
 vfd_handle_t* chronovfd_init() {
 
   vfd_pin_t defaults = {
@@ -135,7 +152,7 @@ vfd_handle_t* chronovfd_init() {
   };
   vfd_handle_t *vfd = vfd_init(defaults, "chronovfd");
   vfd_mux_init(vfd, 3000);
-  vfd->buf[0] = segment_lookup('c');
+  vfd->buf[0] = segment_lookup('t');
   vfd->buf[1] = segment_lookup('r');
   vfd->buf[3] = segment_lookup('o');
   vfd->buf[4] = segment_lookup('n');
