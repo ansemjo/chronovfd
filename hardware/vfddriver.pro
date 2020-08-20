@@ -1,6 +1,6 @@
-update=Fri 31 Jul 2020 11:55:28 CEST
+update=Thu 20 Aug 2020 23:55:24 CEST
 version=1
-last_client=eeschema
+last_client=kicad
 [general]
 version=1
 RootSch=
@@ -14,7 +14,7 @@ LibDir=
 [eeschema/libraries]
 [pcbnew]
 version=1
-PageLayoutDescrFile=default.kicad_wks
+PageLayoutDescrFile=
 LastNetListRead=
 CopperLayerCount=2
 BoardThickness=1.6002
@@ -258,7 +258,7 @@ dPairGap=0.12
 dPairViaGap=0.25
 [schematic_editor]
 version=1
-PageLayoutDescrFile=default.kicad_wks
+PageLayoutDescrFile=
 PlotDirectoryName=
 SubpartIdSeparator=0
 SubpartFirstId=65

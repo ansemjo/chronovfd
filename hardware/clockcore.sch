@@ -5,8 +5,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "Clock Core"
-Date "2020-08-02"
-Rev "1.0"
+Date "2020-08-20"
+Rev "1.1"
 Comp ""
 Comment1 "Designed for AISLER 2-Layer Service"
 Comment2 "Made for IVL2-7/5 VFD Driver Board"
@@ -483,11 +483,11 @@ L Device:R_Small R4
 U 1 1 5F2EB625
 P 4100 7150
 F 0 "R4" H 4159 7196 50  0000 L CNN
-F 1 "1kΩ" H 4159 7105 50  0000 L CNN
+F 1 "2.2kΩ" H 4159 7105 50  0000 L CNN
 F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4100 7150 50  0001 C CNN
 F 3 "~" H 4100 7150 50  0001 C CNN
-F 4 "311-1.00KCRCT-ND" H 4100 7150 50  0001 C CNN "Digi-Key_PN"
-F 5 "RC0805FR-071KL" H 4100 7150 50  0001 C CNN "MPN"
+F 4 "311-2.20KCRCT-ND" H 4100 7150 50  0001 C CNN "Digi-Key_PN"
+F 5 "RC0805FR-072K2L" H 4100 7150 50  0001 C CNN "MPN"
 F 6 "Yageo" H 4100 7150 50  0001 C CNN "Manufacturer"
 	1    4100 7150
 	1    0    0    -1  
@@ -2006,33 +2006,20 @@ F 3 "" H 950 1900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+3.3V #PWR012
-U 1 1 5F2FE21C
-P 950 1050
-F 0 "#PWR012" H 950 900 50  0001 C CNN
-F 1 "+3.3V" H 965 1223 50  0000 C CNN
-F 2 "" H 950 1050 50  0001 C CNN
-F 3 "" H 950 1050 50  0001 C CNN
-	1    950  1050
-	1    0    0    -1  
-$EndComp
-$Comp
 L Device:R_Small R1
 U 1 1 5F301A5E
 P 950 1200
 F 0 "R1" V 1150 1200 50  0000 C CNN
-F 1 "4.7kΩ" V 1050 1200 50  0000 C CNN
+F 1 "1MΩ" V 1050 1200 50  0000 C CNN
 F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 950 1200 50  0001 C CNN
 F 3 "~" H 950 1200 50  0001 C CNN
-F 4 "311-4.70KCRCT-ND" H 950 1200 50  0001 C CNN "Digi-Key_PN"
-F 5 "RC0805FR-074K7L" H 950 1200 50  0001 C CNN "MPN"
+F 4 "311-1.00MCRCT-ND" H 950 1200 50  0001 C CNN "Digi-Key_PN"
+F 5 "RC0805FR-071ML" H 950 1200 50  0001 C CNN "MPN"
 F 6 "Yageo" H 950 1200 50  0001 C CNN "Manufacturer"
 	1    950  1200
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	950  1100 950  1050
-Text GLabel 1000 1400 2    50   Input ~ 0
+Text GLabel 1000 950  2    50   Input ~ 0
 LIGHT
 Text GLabel 3700 1300 0    50   Input ~ 0
 LIGHT
@@ -2076,27 +2063,20 @@ Wire Wire Line
 	5550 3100 4950 3100
 Wire Wire Line
 	950  1900 950  1800
-Wire Wire Line
-	950  1500 950  1400
 $Comp
 L Device:D_Photo D1
 U 1 1 5F3B85A5
-P 950 1700
-F 0 "D1" H 900 1483 50  0000 C CNN
-F 1 "Ambient Light Sensor" H 900 1574 50  0000 C CNN
-F 2 "Diode_SMD:D_1206_3216Metric_Castellated" H 900 1700 50  0001 C CNN
-F 3 "http://www.vishay.com/docs/81812/temd6200.pdf" H 900 1700 50  0001 C CNN
-F 4 "VEMD1060X01CT-ND" H 950 1700 50  0001 C CNN "Digi-Key_PN"
-F 5 "VEMD1060X01" H 950 1700 50  0001 C CNN "MPN"
-F 6 "Vishay" H 950 1700 50  0001 C CNN "Manufacturer"
-	1    950  1700
-	0    1    1    0   
+P 950 1600
+F 0 "D1" H 850 1900 50  0000 C CNN
+F 1 "Photodiode" H 950 1800 50  0000 C CNN
+F 2 "Diode_SMD:D_1206_3216Metric_Castellated" H 900 1600 50  0001 C CNN
+F 3 "http://www.vishay.com/docs/81812/temd6200.pdf" H 900 1600 50  0001 C CNN
+F 4 "VEMD1060X01CT-ND" H 950 1600 50  0001 C CNN "Digi-Key_PN"
+F 5 "VEMD1060X01" H 950 1600 50  0001 C CNN "MPN"
+F 6 "Vishay" H 950 1600 50  0001 C CNN "Manufacturer"
+	1    950  1600
+	0    -1   -1   0   
 $EndComp
-Wire Wire Line
-	950  1400 1000 1400
-Connection ~ 950  1400
-Wire Wire Line
-	950  1400 950  1300
 Wire Notes Line
 	550  2450 550  600 
 Wire Notes Line
@@ -2294,14 +2274,12 @@ F 3 "" H 3650 5300 50  0001 C CNN
 $EndComp
 Text Notes 1850 2100 0    50   ~ 0
 TODO: forgot onewire pullup\nis internal enough?
-Text Notes 4300 6250 0    50   ~ 0
-TODO: properly match\nbrightness. PWR (red)\nis brighter
 $Comp
 L Device:LED_Small D3
 U 1 1 5F2FA06D
 P 4700 6900
 F 0 "D3" V 4746 6830 50  0000 R CNN
-F 1 "GPIO LED" V 4655 6830 50  0000 R CNN
+F 1 "USR GRN" V 4655 6830 50  0000 R CNN
 F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4700 6900 50  0001 C CNN
 F 3 "~" V 4700 6900 50  0001 C CNN
 F 4 "732-4986-1-ND" H 4700 6900 50  0001 C CNN "Digi-Key_PN"
@@ -2315,7 +2293,7 @@ L Device:LED_Small D2
 U 1 1 5F2EBC41
 P 4100 6900
 F 0 "D2" V 4146 6830 50  0000 R CNN
-F 1 "PWR LED" V 4055 6830 50  0000 R CNN
+F 1 "PWR RED" V 4055 6830 50  0000 R CNN
 F 2 "LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4100 6900 50  0001 C CNN
 F 3 "~" V 4100 6900 50  0001 C CNN
 F 4 "732-4985-1-ND" H 4100 6900 50  0001 C CNN "Digi-Key_PN"
@@ -2324,4 +2302,10 @@ F 6 "Würth" H 4100 6900 50  0001 C CNN "Manufacturer"
 	1    4100 6900
 	0    -1   -1   0   
 $EndComp
+Wire Wire Line
+	950  1300 950  1500
+Wire Wire Line
+	1000 950  950  950 
+Wire Wire Line
+	950  950  950  1100
 $EndSCHEMATC
