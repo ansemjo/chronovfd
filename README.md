@@ -25,6 +25,12 @@ sourced elsewhere but there are plenty on [eBay](https://www.ebay.com/sch/i.html
 Both boards can be assembled together e.g. with 11 mm M2.5 standoffs between
 them. I have found some that are marketed as a "Raspberry Pi assembly kit".
 
+### Errata
+
+Sometimes things go wrong .. these are known errors and how to fix them:
+
+* [Rev1.0: Fix the ambient light sensor photodiode](hardware/errata/rev1.0-photodiode/erratum-photodiode.md)
+
 ## VFD Driver Board
 
 The VFD driver board is basically a power supply and a simple shift register
