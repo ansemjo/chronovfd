@@ -78,11 +78,13 @@ void i2cscan(void *arg) {
 
 }
 
+#define CONFIG_I2CDEV_TIMEOUT 1000
+
 // display the current runtime in MM:SS on display
 void rtctime(void *arg) {
 
   vfd_handle_t *vfd = arg;
-  
+
   i2c_dev_t rtc;
   memset(&rtc, 0, sizeof(i2c_dev_t));
 
@@ -92,9 +94,22 @@ void rtctime(void *arg) {
   ESP_ERROR_CHECK(ds1307_start(&rtc, true));
   ESP_LOGI("rtctime", "rtc started ...");
 
+
   // time_t now;
   struct tm time;
   char timebuf[32];
+
+  // set time once
+  // time.tm_year = 2020 - 1900;
+  // time.tm_mon = 8 - 1;
+  // time.tm_mday = 25;
+  // time.tm_hour = 22;
+  // time.tm_min = 11;
+  // time.tm_sec = 0;
+  // ds1307_set_time(&rtc, &time);
+  // vfd_text(vfd, "   OK");
+  // while (true) {}
+
 
   while (true) {
 
@@ -103,8 +118,13 @@ void rtctime(void *arg) {
     if (ds1307_get_time(&rtc, &time) != ESP_OK) {
       printf("couldn't get time from rtc");
     } else {
-      strftime(timebuf, sizeof(timebuf), "%M:%S", &time);
-      printf("%s", timebuf);
+      // strftime(timebuf, sizeof(timebuf), "%H:%M", &time);
+      snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
+        time.tm_hour, (time.tm_sec % 2) == 1 ? ':' : ' ', time.tm_min);
+      printf("Now: %d.%d.%d %d:%d:%d\n",
+        time.tm_mday, time.tm_mon, time.tm_year,
+        time.tm_hour, time.tm_min, time.tm_sec
+      );
       vfd_text(vfd, timebuf);
     };
 
@@ -126,7 +146,7 @@ void app_main() {
   }
   ESP_ERROR_CHECK(err);
 
-  vfd_handle_t* vfd = chronovfd_init();
+  vfd_handle_t *vfd = chronovfd_init();
   
   // Pin 4, SENSOR_VP == GPIO 36 == ADC1 Channel 0
   ambientlight_dimmer_init(ADC1_CHANNEL_0, vfd->pin.fil_shdn);
