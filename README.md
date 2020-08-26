@@ -9,7 +9,7 @@ Currently, I have the printed circuit boards assembled and the display lights
 up but I need some more work on the firmware until it actually performs any
 useful function.
 
-![](images/protoclock.jpg)
+![](images/clockface.jpg)
 
 # Hardware
 
