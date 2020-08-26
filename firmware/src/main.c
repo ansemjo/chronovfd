@@ -31,54 +31,38 @@ void led_init() {
   gpio_set_level(LED, 1);
 }
 
-void i2cscan(void *arg) {
+// check if the rtc is configured as expected and return if everything was ok
+bool rtc_config(i2c_dev_t *rtc) {
 
-  vfd_handle_t *vfd = arg;
+  bool ret = true;
 
-  i2c_config_t i2cdrvcfg = {
-    .mode = I2C_MODE_MASTER,
-    .scl_io_num = 22,
-    .scl_pullup_en = false,
-    .sda_io_num = 21,
-    .sda_pullup_en = false,
-    .master.clk_speed = 100000,
-  };
-  ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2cdrvcfg));
-
-  i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
-  
-  while (true) {
-
-    uint8_t address;
-    printf("     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\r\n");
-    for (int i = 0; i < 128; i += 16) {
-        printf("%02x: ", i);
-        for (int j = 0; j < 16; j++) {
-            fflush(stdout);
-            address = i + j;
-            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-            i2c_master_start(cmd);
-            i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, 0x1);
-            i2c_master_stop(cmd);
-            esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 50 / portTICK_RATE_MS);
-            i2c_cmd_link_delete(cmd);
-            if (ret == ESP_OK) {
-                printf("%02x ", address);
-            } else if (ret == ESP_ERR_TIMEOUT) {
-                printf("UU ");
-            } else {
-                printf("-- ");
-            }
-        }
-        printf("\r\n\r\n");
-    }
-
-    vTaskDelay(2000 / portTICK_RATE_MS);
+  bool ok;
+  ESP_ERROR_CHECK(ds1307_is_running(rtc, &ok));
+  if (!ok) {
+    ESP_LOGI("DS1338 RTC", "wasn't started. starting ...");
+    ESP_ERROR_CHECK(ds1307_start(rtc, true));
+    ret = false;
   }
+
+  ds1307_squarewave_freq_t sqwf;
+  ESP_ERROR_CHECK(ds1307_get_squarewave_freq(rtc, &sqwf));
+  if (sqwf != DS1307_32768HZ) {
+    ESP_LOGI("DS1338 RTC", "wrong SQWE frequency: RS = %x. setting 32.768 kHz ...", sqwf);
+    ESP_ERROR_CHECK(ds1307_set_squarewave_freq(rtc, DS1307_32768HZ));
+    ret = false;
+  }
+
+  ESP_ERROR_CHECK(ds1307_is_squarewave_enabled(rtc, &ok));
+  if (!ok) {
+    ESP_LOGI("DS1338 RTC", "SQWE output not enabled. enabling ...");
+    ESP_ERROR_CHECK(ds1307_enable_squarewave(rtc, true));
+    ret = false;
+  }
+
+  return ret;
 
 }
 
-#define CONFIG_I2CDEV_TIMEOUT 1000
 
 // display the current runtime in MM:SS on display
 void rtctime(void *arg) {
@@ -89,11 +73,14 @@ void rtctime(void *arg) {
   memset(&rtc, 0, sizeof(i2c_dev_t));
 
   ESP_ERROR_CHECK(ds1307_init_desc(&rtc, I2C_NUM_0, 21, 22));
-  ESP_LOGI("rtctime", "initialized ...");
+  ESP_LOGI("DS1338 RTC", "I2C device initialized ...");
 
-  ESP_ERROR_CHECK(ds1307_start(&rtc, true));
-  ESP_LOGI("rtctime", "rtc started ...");
-
+  if (!rtc_config(&rtc)) {
+    // config wasn't properly set. reboot.
+    ESP_LOGW("DS1338 RTC", "clock source has been reconfigured. restarting!");
+    fflush(stdout);
+    esp_restart();
+  }
 
   // time_t now;
   struct tm time;
@@ -147,7 +134,7 @@ void app_main() {
   // Pin 4, SENSOR_VP == GPIO 36 == ADC1 Channel 0
   ambientlight_dimmer_init(ADC1_CHANNEL_0, vfd->pin.fil_shdn);
 
-  xTaskCreate(rtctime, "rtctime", 2048, vfd, 2, NULL);
+  xTaskCreate(rtctime, "rtctime", 4096, vfd, 2, NULL);
   
 
 }

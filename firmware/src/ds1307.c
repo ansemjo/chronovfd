@@ -97,7 +97,9 @@ esp_err_t ds1307_is_running(i2c_dev_t *dev, bool *running)
 
     I2C_DEV_CHECK(dev, i2c_dev_read_reg(dev, TIME_REG, &val, 1));
 
-    *running = val & CH_BIT;
+    // fix confusing behaviour: https://github.com/UncleRus/esp-idf-lib/issues/110
+    // the CH bit is "clock halt", i.e. then it is set the clock is stopped
+    *running = !(val & CH_BIT);
 
     return ESP_OK;
 }
@@ -179,7 +181,8 @@ esp_err_t ds1307_get_squarewave_freq(i2c_dev_t *dev, ds1307_squarewave_freq_t *s
 
     I2C_DEV_CHECK(dev, i2c_dev_read_reg(dev, CONTROL_REG, &val, 1));
     
-    *sqw_freq = val & SQWEF_MASK;
+    // fix inverted mask: https://github.com/UncleRus/esp-idf-lib/issues/110
+    *sqw_freq = val & ~SQWEF_MASK;
 
     return ESP_OK;
 }
