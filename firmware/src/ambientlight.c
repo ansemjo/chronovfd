@@ -50,13 +50,9 @@ typedef struct ambientlight_dimmer_t {
 // global variable for the filament dimmer on chronovfd
 ambientlight_dimmer_t filament;
 
-// taken from arduino
-long map(long x, long in_min, long in_max, long out_min, long out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-long capped(long a, long b) {
-  return (a > b) ? b : a;
+unsigned ambientmap(unsigned value, unsigned reading_max, unsigned duty_min) {
+  if (value >= reading_max) return 0;
+  return ((reading_max - value) * 1.0 / reading_max) * duty_min;
 }
 
 void ambientlight_dimmer(void *taskArg) {
@@ -64,7 +60,7 @@ void ambientlight_dimmer(void *taskArg) {
   uint16_t duty;
   while (true) {
     value = moving_average(&filament.avg, adc1_get_raw(filament.adc));
-    duty = 190 - capped(map(value, 0, 400, 0, 190), 190);
+    duty = ambientmap(value, 400, 200);
     ledc_set_duty(filament.mode, filament.channel, duty);
     ledc_update_duty(filament.mode, filament.channel);
     vTaskDelay(100 / portTICK_RATE_MS);
@@ -105,7 +101,9 @@ void ambientlight_dimmer_init(adc1_channel_t sensor, gpio_num_t filshdn) {
   adc1_config_channel_atten(filament.adc, ADC_ATTEN_DB_0);
   ESP_LOGI("filament dimmer", "adc configured");
 
-  xTaskCreate(ambientlight_dimmer, "ambient light dimmer", 512, NULL, 10, NULL);
+  // ERROR: getting spurious stack overflows with 512 here ..
+  // Find out why the stack won't stay the same size forever?
+  xTaskCreate(ambientlight_dimmer, "ambient light dimmer", 1024, NULL, 10, NULL);
   ESP_LOGI("filament dimmer", "task created");
 
 }

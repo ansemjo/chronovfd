@@ -121,10 +121,6 @@ void rtctime(void *arg) {
       // strftime(timebuf, sizeof(timebuf), "%H:%M", &time);
       snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
         time.tm_hour, (time.tm_sec % 2) == 1 ? ':' : ' ', time.tm_min);
-      printf("Now: %d.%d.%d %d:%d:%d\n",
-        time.tm_mday, time.tm_mon, time.tm_year,
-        time.tm_hour, time.tm_min, time.tm_sec
-      );
       vfd_text(vfd, timebuf);
     };
 
