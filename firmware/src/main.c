@@ -22,6 +22,7 @@
 
 #include "vfddriver.h"
 #include "segments.h"
+#include "realtimeclock.h"
 #include "ambientlight.h"
 
 // turn on the usr led, yay
@@ -134,7 +135,11 @@ void app_main() {
   // Pin 4, SENSOR_VP == GPIO 36 == ADC1 Channel 0
   ambientlight_dimmer_init(ADC1_CHANNEL_0, vfd->pin.fil_shdn);
 
-  xTaskCreate(rtctime, "rtctime", 4096, vfd, 2, NULL);
+  i2c_dev_t rtc = chrono_rtc_init();
+  update_time_from_rtc(&rtc);
+
+  xTaskCreate(timedisplay_task, "clockface", 4096, vfd, 2, NULL);
+
   
 
 }
