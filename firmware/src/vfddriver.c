@@ -2,10 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "esp_log.h"
-#include "driver/spi_master.h"
-#include "driver/gpio.h"
-#include "driver/timer.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+#include <esp_log.h>
+#include <driver/spi_master.h>
+#include <driver/gpio.h>
+#include <driver/timer.h>
 
 #include "vfddriver.h"
 #include "segments.h"
@@ -28,8 +31,6 @@ void vfd_spi_data(vfd_handle_t *vfd, uint16_t data) {
   // prepare a new transaction
   spi_transaction_t t;
   memset(&t, 0, sizeof(t));
-
-  // embed vfd handle for context
   t.user = vfd;
 
   // prepare data to be sent, 20 bits fully define all output pins
@@ -38,7 +39,7 @@ void vfd_spi_data(vfd_handle_t *vfd, uint16_t data) {
   t.length = 20;
 
   // transmit and wait for transaction to finish
-  ESP_ERROR_CHECK(spi_device_transmit(vfd->spi, &t));
+  ESP_ERROR_CHECK(spi_device_polling_transmit(vfd->spi, &t));
 
 }
 
@@ -48,7 +49,7 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
   // allocate new handle on heap
   vfd_handle_t *vfd = calloc(1, sizeof(vfd_handle_t));
   vfd->pin = pin;
-  vfd->tag = tag;
+  vfd->tag = tag; // TODO: better user string copy?
 
   // configure the spi bus
   spi_bus_config_t buscfg = {
@@ -64,6 +65,7 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
   // add the device on the bus
   spi_device_interface_config_t devcfg = {
     // HV5812 maximum rated frequency @ 125°C, 5V = 5 MHz
+    // so we're overclocking here, but it works for me™
     .clock_speed_hz = 20*1000*1000,
     .mode = 0,
     .pre_cb  = vfd_spi_strobe_low,
@@ -73,7 +75,7 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
     .dummy_bits = 0,
     .duty_cycle_pos = 128,
     .spics_io_num = -1,
-    .queue_size = 1,
+    .queue_size = 4,
   };
   ESP_ERROR_CHECK(spi_bus_add_device(pin.host, &devcfg, &vfd->spi));
   ESP_LOGI(tag, "device added; strobe=%d", pin.strobe);
@@ -97,42 +99,81 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char* tag) {
 // ------------------------ digitmux timer ------------------------
 
 uint16_t vfd_grids[5] = { G1, G2, G3, G4, G5 };
+#define vfd_grids_n (sizeof(vfd_grids)/sizeof(uint16_t))
 
 // periodically called function which does time-multiplexing of the
 // individual digits on the display from contents of vfd->buf
-void vfd_digitmux(void *arg) {
-  vfd_handle_t *vfd = arg;
-  int p = vfd->pos;
-  uint16_t data = (vfd->buf[p] & SEGMENTMASK) | vfd_grids[p];
-  vfd_spi_data(vfd, data);
-  vfd->pos = (p + 1) % 5;
+void IRAM_ATTR vfd_digitmux_task(vfd_handle_t *vfd) {
+
+  // setup local variables and acquire bus
+  ESP_ERROR_CHECK(spi_device_acquire_bus(vfd->spi, portMAX_DELAY));
+  int p;
+  uint16_t data;
+
+  // loop unblocked from timer isr periodically
+  while (true) {
+    xSemaphoreTake(vfd->mux, portMAX_DELAY);
+    p = vfd->pos;
+    data = (vfd->buf[p] & SEGMENTMASK) | vfd_grids[p];
+    vfd_spi_data(vfd, data);
+    vfd->pos = (p + 1) % vfd_grids_n;
+  }
+
 }
 
-// create a periodic timer for digit time multiplexing
-void vfd_mux_init(vfd_handle_t *vfd, uint64_t period_us) {
+// interrupt service routine that periodically unblocks vfd_digitmux_task
+void IRAM_ATTR vfd_digitmux_isr(vfd_handle_t *vfd) {
+  // rearm timer
+  (vfd->timer.idx) ? (TIMERG0.int_clr_timers.t1 = 1) : (TIMERG0.int_clr_timers.t0 = 1);
+  TIMERG0.hw_timer[vfd->timer.idx].config.alarm_en = TIMER_ALARM_EN;
+  // unblock and wake task
+  BaseType_t HigherPriorityTaskWoken = pdFALSE;
+  xSemaphoreGiveFromISR(vfd->mux, &HigherPriorityTaskWoken);
+}
 
-  vfd->pos = 0;
-  esp_timer_create_args_t muxargs = {
-    .name = vfd->tag,
-    .callback = vfd_digitmux,
-    .arg = vfd,
-    .dispatch_method = ESP_TIMER_TASK,
+// vfd_mux_init configures a hardware timer and registers an isr for
+// digit multiplexing in the background. use period=0.002 for 
+// approximately 60 Hz overall refresh rate.
+#define HVMUX_DIVIDER 80
+void vfd_mux_init(vfd_handle_t *vfd, timer_group_t group, timer_idx_t idx, double period) {
+
+  // only timer group 0 / TIMERG0 is supported for now
+  if (group != 0) {
+    ESP_LOGW(vfd->tag, "only timer group 0 supported for now");
+    group = 0;
+  }
+
+  // initialise multiplexing timer
+  vfd->timer = (vfd_timer_t){ group, idx };
+  timer_config_t timercfg = {
+    .divider = HVMUX_DIVIDER,
+    .counter_en = false,
+    .counter_dir = TIMER_COUNT_UP,
+    .auto_reload = TIMER_AUTORELOAD_EN,
+    .alarm_en = true,
+    .intr_type = TIMER_INTR_LEVEL,
   };
-  ESP_ERROR_CHECK(esp_timer_create(&muxargs, &vfd->mux));
-  ESP_ERROR_CHECK(esp_timer_start_periodic(vfd->mux, period_us));
+  timer_init(group, idx, &timercfg);
+  timer_set_counter_value(group, idx, 0);
+  timer_set_alarm_value(group, idx, period * (TIMER_BASE_CLK / HVMUX_DIVIDER));
+
+  // create task and register isr
+  vfd->mux = xSemaphoreCreateBinary();
+  xTaskCreate((void(*)(void*))vfd_digitmux_task, "digitmux", 2048, vfd, 20, NULL);
+  timer_enable_intr(group, idx);
+  timer_isr_register(group, idx, (void(*)(void*))vfd_digitmux_isr, vfd, 0, NULL);
+  timer_start(group, idx);
 
 }
 
 // write text into the buffer from which digit multiplexing is performed.
 // text must point to a char array with $GRIDS elements
 void vfd_text(vfd_handle_t *vfd, char *text) {
-
   int i = 0;
   while ((i < GRIDS) && (text[i] != 0)) {
     vfd->buf[i] = segment_lookup(text[i]);
     i++;
   };
-
 }
 
 // ------------------------ convenience ------------------------
@@ -151,11 +192,7 @@ vfd_handle_t* chronovfd_init() {
     .hv_shdn   = VFD_PIN_HVSHDN,
   };
   vfd_handle_t *vfd = vfd_init(defaults, "chronovfd");
-  vfd_mux_init(vfd, 3000);
-  vfd->buf[0] = segment_lookup('t');
-  vfd->buf[1] = segment_lookup('r');
-  vfd->buf[3] = segment_lookup('o');
-  vfd->buf[4] = segment_lookup('n');
+  vfd_mux_init(vfd, TIMER_GROUP_0, TIMER_0, 0.002);
 
   return vfd;
 

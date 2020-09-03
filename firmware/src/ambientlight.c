@@ -60,7 +60,7 @@ void ambientlight_dimmer(void *taskArg) {
   uint16_t duty;
   while (true) {
     value = moving_average(&filament.avg, adc1_get_raw(filament.adc));
-    duty = ambientmap(value, 400, 200);
+    duty = ambientmap(value, 600, 200);
     ledc_set_duty(filament.mode, filament.channel, duty);
     ledc_update_duty(filament.mode, filament.channel);
     vTaskDelay(100 / portTICK_RATE_MS);
