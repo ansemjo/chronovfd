@@ -2,42 +2,31 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <esp_sntp.h>
+#include <esp_log.h>
+
 #include "ds1307.h"
 #include "vfddriver.h"
 #include "realtimeclock.h"
 
+// -------------------- battery-backed real-time clock --------------------
 
-i2c_dev_t chrono_rtc_init() {
+#define RTC_TAG "realtimeclock"
 
-  i2c_dev_t rtc;
-  memset(&rtc, 0, sizeof(i2c_dev_t));
-
-  // initialize i2c device
-  ESP_ERROR_CHECK(ds1307_init_desc(&rtc, I2C_NUM_0, 21, 22));
-  ESP_LOGI(RTC_TAG, "I2C device initialized.");
-
-  if (!chrono_rtc_config(&rtc)) {
-    // config wasn't properly set. reboot.
-    ESP_LOGW(RTC_TAG, "clock source has been reconfigured. restarting!");
-    fflush(stdout);
-    esp_restart();
-  }
-
-  return rtc;
-
-}
+i2c_dev_t ds13xx = { 0 };
 
 // check if the rtc is configured as expected and return if everything was ok
-bool chrono_rtc_config(i2c_dev_t *rtc) {
-
-  bool ret = true;
+esp_err_t realtimeclock_check_configuration(i2c_dev_t *rtc) {
+  esp_err_t ret = ESP_OK;
 
   bool ok;
   ESP_ERROR_CHECK(ds1307_is_running(rtc, &ok));
   if (!ok) {
-    ESP_LOGI(RTC_TAG, "wasn't started. starting ...");
+    ESP_LOGI(RTC_TAG, "was halted. starting ...");
     ESP_ERROR_CHECK(ds1307_start(rtc, true));
-    ret = false;
+    ret = ESP_ERR_INVALID_STATE;
   }
 
   ds1307_squarewave_freq_t sqwf;
@@ -45,92 +34,145 @@ bool chrono_rtc_config(i2c_dev_t *rtc) {
   if (sqwf != DS1307_32768HZ) {
     ESP_LOGI(RTC_TAG, "wrong SQWE frequency: RS = %x. setting 32.768 kHz ...", sqwf);
     ESP_ERROR_CHECK(ds1307_set_squarewave_freq(rtc, DS1307_32768HZ));
-    ret = false;
+    ret = ESP_ERR_INVALID_STATE;
   }
 
   ESP_ERROR_CHECK(ds1307_is_squarewave_enabled(rtc, &ok));
   if (!ok) {
-    ESP_LOGI(RTC_TAG, "SQWE output not enabled. enabling ...");
+    ESP_LOGI(RTC_TAG, "SQWE output disabled. enabling ...");
     ESP_ERROR_CHECK(ds1307_enable_squarewave(rtc, true));
-    ret = false;
+    ret = ESP_ERR_INVALID_STATE;
   }
 
   return ret;
 
 }
 
-// update system time from battery-backed rtc
-void update_time_from_rtc(i2c_dev_t *rtc) {
+void realtimeclock_init(gpio_num_t sda, gpio_num_t scl) {
 
-  struct tm update;
-  struct timeval tv;
-  ESP_ERROR_CHECK(ds1307_get_time(rtc, &update));
-  ESP_LOGI(RTC_TAG, "Reading Datetime [UTC]: %04d-%02d-%02d %02d:%02d:%02d",
-    update.tm_year + 1900, update.tm_mon + 1, update.tm_mday,
-    update.tm_hour, update.tm_min, update.tm_sec);
-  fflush(stdout);
-  
-  tv.tv_sec = mktime(&update);
-  tv.tv_usec = 0;
+  // initialize i2c device
+  memset(&ds13xx, 0, sizeof(i2c_dev_t));
+  ESP_ERROR_CHECK(ds1307_init_desc(&ds13xx, I2C_NUM_0, sda, scl));
+  ESP_LOGI(RTC_TAG, "%s initialized", RTC_MODEL);
+
+  // check register configuration
+  if (realtimeclock_check_configuration(&ds13xx) == ESP_ERR_INVALID_STATE) {
+    ESP_LOGW(RTC_TAG, "clock source has been reconfigured. restarting!");
+    fflush(stdout);
+    esp_restart();
+  }
+
+}
+
+// update system time from battery-backed rtc
+void realtimeclock_read_from_rtc() {
+
+  struct tm t;
+  ESP_ERROR_CHECK(ds1307_get_time(&ds13xx, &t));
+  ESP_LOGI(RTC_TAG, "reading datetime from rtc: %04d-%02d-%02d %02d:%02d:%02d UTC",
+    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+  struct timeval tv = { mktime(&t), 0 };
   settimeofday(&tv, NULL);
 
 }
 
-void update_time_in_rtc(i2c_dev_t *rtc) {
+// update rtc time from system, e.g. after sntp_sync
+void realtimeclock_update_rtc() {
 
   time_t now;
-  struct tm update;
+  struct tm t;
   time(&now);
-  gmtime_r(&now, &update);
+  gmtime_r(&now, &t);
 
-  ESP_LOGI(RTC_TAG, "Setting Datetime [UTC]: %04d-%02d-%02d %02d:%02d:%02d",
-    update.tm_year + 1900, update.tm_mon + 1, update.tm_mday,
-    update.tm_hour, update.tm_min, update.tm_sec);
-  ESP_ERROR_CHECK(ds1307_set_time(rtc, &update));
+  ESP_LOGI(RTC_TAG, "setting datetime in rtc: %04d-%02d-%02d %02d:%02d:%02d UTC",
+    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+  ESP_ERROR_CHECK(ds1307_set_time(&ds13xx, &t));
 
 }
+
+// update rtc to a fixed time .. very crude way before I had sntp set up.
+// takes iso-like strings: "2020-09-04 19:43:00"
+void realtimeclock_update_rtc_fixedtime(const char *timestamp) {
+
+  // parse timestamp string
+  struct tm t;
+  int n = sscanf(timestamp, "%4d-%2d-%2d %2d:%2d:%2d",
+    &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &t.tm_sec);
+  if (n != 6) ESP_ERROR_CHECK(ESP_ERR_INVALID_ARG);
+  
+  // apply corrections for expected rtc format
+  t.tm_year -= 1900;
+  t.tm_mon -= 1;
+
+  // set system time and update rtc
+  ESP_LOGW(RTC_TAG, "setting fixed time %s", timestamp);
+  struct timeval tv = { mktime(&t), 0 };
+  settimeofday(&tv, NULL);
+  realtimeclock_update_rtc();
+
+}
+
+// -------------------- display tasks --------------------
 
 // display the current clock in HH:MM on the display.
-// assumes that the esp-internal rtc is synchronized with the external
-// battery-backed source, so time() is used.
-void timedisplay_task(void *arg) {
-
-  // cast argument to vfd display handle
-  vfd_handle_t *vfd = arg;
+// assumes that the system rtc is synchronized with the external
+// battery-backed source, so posix time() is used.
+void clockface_task(vfd_handle_t *vfd) {
 
   time_t now;
-  struct tm tm;
-  char timebuf[32];
+  struct tm t;
+  char timebuf[6];
 
-  while (true) {
+  for (;;) {
     time(&now);
-    localtime_r(&now, &tm);
+    localtime_r(&now, &t);
     snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
-      tm.tm_hour, (tm.tm_sec % 2) == 1 ? ':' : ' ', tm.tm_min);
+      t.tm_hour, (t.tm_sec % 2) == 0 ? ':' : ' ', t.tm_min);
     vfd_text(vfd, timebuf);
-    vTaskDelay(100 / portTICK_RATE_MS);
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
-  
-  // shouldn't ever get here
-  vTaskDelete(NULL);
+
 }
 
-// set time once .. very crude way to set time before i have sntp set up
-void chrono_rtc_set_fixed_time(i2c_dev_t *rtc, int year, int month, int day,
-  int hour, int minute, int second) {
+// -------------------- sntp time synchronization --------------------
 
-  struct tm nt;
-  nt.tm_year = year - 1900;
-  nt.tm_mon = month - 1;
-  nt.tm_mday = day;
-  nt.tm_hour = hour;
-  nt.tm_min = minute;
-  nt.tm_sec = second;
-  ds1307_set_time(rtc, &nt);
-  time_t now = mktime(&nt);
-  printf("+++ set time to fixed date: %s +++\n", ctime(&now));
-  while (true) {
-    printf(".");
-    vTaskDelay(1000 / portTICK_RATE_MS);
+#define SNTP_TAG "sntp_sync"
+const char* sntp_servers[2] = {
+  "0.de.pool.ntp.org",
+  "1.de.pool.ntp.org",
+};
+
+SemaphoreHandle_t sntp_sync_done = NULL;
+void sntp_sync_callback() {
+  ESP_LOGI(SNTP_TAG, "successfully synchronized");
+  xSemaphoreGive(sntp_sync_done);
+}
+
+// Synchronize the time with a list of SNTP servers. Assumes that WiFi is
+// running and a connection is established. Returns ESP_ERR_TIMEOUT if waiting
+// for synchronization timed out.
+esp_err_t sntp_sync(TickType_t timeout) {
+  esp_err_t err = ESP_FAIL;
+
+  ESP_LOGI(SNTP_TAG, "initialize");
+  sntp_setoperatingmode(SNTP_OPMODE_POLL);
+  for (int i = 0; i < (sizeof(sntp_servers)/sizeof(char*)); i++) {
+    sntp_setservername(i, sntp_servers[i]);
+    ESP_LOGI(SNTP_TAG, "added server: %s", sntp_servers[i]);
   }
+  if (!sntp_sync_done)
+    sntp_sync_done = xSemaphoreCreateBinary();
+  sntp_set_time_sync_notification_cb(sntp_sync_callback);
+  sntp_init();
+
+  ESP_LOGI(SNTP_TAG, "waiting %.1fs for synchronization", (double)timeout / configTICK_RATE_HZ);
+  if (xSemaphoreTake(sntp_sync_done, timeout)) {
+    err = ESP_OK;
+  } else {
+    err = ESP_ERR_TIMEOUT;
+    ESP_LOGW(SNTP_TAG, "timeout! failed to synchronize time");
+  };
+  sntp_stop();
+  return err;
+  
 }

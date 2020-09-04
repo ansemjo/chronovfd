@@ -1,5 +1,4 @@
-#ifndef _SEGMENTS_H_
-#define _SEGMENTS_H_
+#pragma once
 
 #include <stdint.h>
 
@@ -50,5 +49,3 @@ const uint16_t grids[GRIDS];
 
 // character lookup for segment mapping
 uint16_t segment_lookup(char ch);
-
-#endif // _SEGMENTS_H_

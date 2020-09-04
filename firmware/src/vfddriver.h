@@ -1,10 +1,10 @@
-#ifndef _VFDDRIVER_H_
-#define _VFDDRIVER_H_
+#pragma once
 
-#include "esp_log.h"
-#include "driver/spi_master.h"
-#include "driver/gpio.h"
-#include "driver/timer.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <driver/spi_master.h>
+#include <driver/gpio.h>
+#include <driver/timer.h>
 
 // default interface to the hv5812 on chronovfd
 #define VFD_SPI_HOST    HSPI_HOST
@@ -52,7 +52,6 @@ vfd_handle_t* vfd_init(vfd_pin_t pin, char *tag);
 void vfd_spi_data(vfd_handle_t *vfd, uint16_t data);
 void vfd_mux_init(vfd_handle_t *vfd, timer_group_t group, timer_idx_t idx, double period);
 void vfd_text(vfd_handle_t *vfd, char *text);
+void vfd_raw(vfd_handle_t *vfd, uint16_t raw[]);
 
 vfd_handle_t* chronovfd_init();
-
-#endif // _VFDDRIVER_H_

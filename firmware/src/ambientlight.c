@@ -58,14 +58,13 @@ unsigned ambientmap(unsigned value, unsigned reading_max, unsigned duty_min) {
 void ambientlight_dimmer(void *taskArg) {
   uint16_t value;
   uint16_t duty;
-  while (true) {
+  for (;;) {
     value = moving_average(&filament.avg, adc1_get_raw(filament.adc));
     duty = ambientmap(value, 600, 200);
     ledc_set_duty(filament.mode, filament.channel, duty);
     ledc_update_duty(filament.mode, filament.channel);
     vTaskDelay(100 / portTICK_RATE_MS);
   }
-  vTaskDelete(NULL);
 }
 
 void ambientlight_dimmer_init(adc1_channel_t sensor, gpio_num_t filshdn) {

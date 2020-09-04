@@ -176,6 +176,12 @@ void vfd_text(vfd_handle_t *vfd, char *text) {
   };
 }
 
+void vfd_raw(vfd_handle_t *vfd, uint16_t raw[GRIDS]) {
+  for (int i = 0; i < GRIDS; i++) {
+    vfd->buf[i] = raw[i];
+  }
+}
+
 // ------------------------ convenience ------------------------
 
 // convenience function to init display with defaults on chronovfd

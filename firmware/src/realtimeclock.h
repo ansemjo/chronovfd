@@ -1,15 +1,21 @@
-#ifndef _REALTIMECLOCK_H_
-#define _REALTIMECLOCK_H_
+#pragma once
 
-#include "ds1307.h"
+#include <esp_err.h>
+#include "i2cdev.h"
 
-// the tag used for esp logging
-#define RTC_TAG "DS1338 RTC"
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define RTC_MODEL "Maxim DS1338"
 
-i2c_dev_t chrono_rtc_init();
-bool chrono_rtc_config(i2c_dev_t *rtc);
-void update_time_from_rtc(i2c_dev_t *rtc);
-void update_time_in_rtc(i2c_dev_t *rtc);
-void timedisplay_task(void *arg);
+// battery-backed ds13xx i2c rtc
+void realtimeclock_init(gpio_num_t sda, gpio_num_t scl);
+void realtimeclock_read_from_rtc();
+void realtimeclock_update_rtc();
+void realtimeclock_update_rtc_fixedtime(const char *timestamp);
 
-#endif // _REALTIMECLOCK_H_
+// tasks
+void clockface_task(vfd_handle_t *arg);
+
+// internet time synchronization
+const char* sntp_servers[2];
+esp_err_t sntp_sync(TickType_t timeout);
