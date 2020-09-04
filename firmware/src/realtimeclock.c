@@ -65,14 +65,28 @@ void update_time_from_rtc(i2c_dev_t *rtc) {
   struct tm update;
   struct timeval tv;
   ESP_ERROR_CHECK(ds1307_get_time(rtc, &update));
-  printf("Datetime from RTC: %02d.%02d.%04d %02d:%02d:%02d\n",
-    update.tm_mday, update.tm_mon + 1, update.tm_year + 1900,
+  ESP_LOGI(RTC_TAG, "Reading Datetime [UTC]: %04d-%02d-%02d %02d:%02d:%02d",
+    update.tm_year + 1900, update.tm_mon + 1, update.tm_mday,
     update.tm_hour, update.tm_min, update.tm_sec);
   fflush(stdout);
   
   tv.tv_sec = mktime(&update);
   tv.tv_usec = 0;
   settimeofday(&tv, NULL);
+
+}
+
+void update_time_in_rtc(i2c_dev_t *rtc) {
+
+  time_t now;
+  struct tm update;
+  time(&now);
+  gmtime_r(&now, &update);
+
+  ESP_LOGI(RTC_TAG, "Setting Datetime [UTC]: %04d-%02d-%02d %02d:%02d:%02d",
+    update.tm_year + 1900, update.tm_mon + 1, update.tm_mday,
+    update.tm_hour, update.tm_min, update.tm_sec);
+  ESP_ERROR_CHECK(ds1307_set_time(rtc, &update));
 
 }
 
@@ -90,7 +104,7 @@ void timedisplay_task(void *arg) {
 
   while (true) {
     time(&now);
-    gmtime_r(&now, &tm);
+    localtime_r(&now, &tm);
     snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
       tm.tm_hour, (tm.tm_sec % 2) == 1 ? ':' : ' ', tm.tm_min);
     vfd_text(vfd, timebuf);
