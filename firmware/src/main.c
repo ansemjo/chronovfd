@@ -178,7 +178,7 @@ void app_main() {
   // enable wifi and synchronize time via ntp  
   vTaskSuspend(clock);
   TaskHandle_t loading;
-  animation_spinner(&loading);
+  animation_textfader(&loading, "conf");
   
   ESP_LOGI("main", "enable wifi");
   wifi_init();
