@@ -7,7 +7,7 @@
 
 // loading animation task with two vertices rotating on the
 // outermost segments around the display. infinite loop, kill via handle!
-void animation_task_spinner(vfd_handle_t *vfd) {
+void animation_spinner_task(void *arg) {
 
   // delay between animation frames
   TickType_t dl = 80 * portTICK_RATE_MS;
@@ -18,7 +18,7 @@ void animation_task_spinner(vfd_handle_t *vfd) {
     {    Aa,     0, 0,     0,    Ad },
   };
   for (int i = 0; i < (sizeof(intro)/sizeof(intro[0])); i++) {
-    vfd_raw(vfd, intro[i]);
+    vfd_raw(intro[i]);
     vTaskDelay(dl);
   }
   
@@ -32,8 +32,12 @@ void animation_task_spinner(vfd_handle_t *vfd) {
     { Aa|Af,     0, 0,     0, Ac|Ad },
   };
   for (int i = 0;; i = (i + 1) % (sizeof(animation)/sizeof(animation[0]))) {
-    vfd_raw(vfd, animation[i]);
+    vfd_raw(animation[i]);
     vTaskDelay(dl);
   }
 
+}
+
+void animation_spinner(TaskHandle_t *task) {
+  xTaskCreate(animation_spinner_task, "anim:spinner", 1024, NULL, 2, task);
 }

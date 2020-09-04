@@ -6,6 +6,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 
+#include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "driver/adc.h"
 
@@ -14,15 +15,6 @@
 
 // ---------------- simple moving average ----------------
 //   for dampening of the ambient light sensor readings
-
-// how many points to hold in a moving average buffer
-#define AVERAGE_POINTS 20
-
-// struct for the state of a simple moving average calculation
-typedef struct moving_average_t {
-  uint16_t buf[AVERAGE_POINTS];
-  unsigned pos;
-} moving_average_t;
 
 uint16_t moving_average(moving_average_t *avg, uint16_t next) {
   // TODO: there's a more efficient algorithm than summing every time
@@ -37,73 +29,81 @@ uint16_t moving_average(moving_average_t *avg, uint16_t next) {
 
 // ---------------- pwm-controlled filament dimmer ----------------
 
+#define TAG "ambientlight"
+
 // struct holding the ledc-controlled pwm variables
-typedef struct ambientlight_dimmer_t {
+typedef struct ambientlight_t {
   ledc_timer_t timer;
   ledc_mode_t mode;
   ledc_channel_t channel;
   adc1_channel_t adc;
   moving_average_t avg;
   gpio_num_t pin;
-} ambientlight_dimmer_t;
+} ambientlight_t;
 
 // global variable for the filament dimmer on chronovfd
-ambientlight_dimmer_t filament;
+static ambientlight_t dimmer;
 
+// mapping an adc reading to pwm duty cycle, lower reading -> higher shutdown duty
 unsigned ambientmap(unsigned value, unsigned reading_max, unsigned duty_min) {
   if (value >= reading_max) return 0;
   return ((reading_max - value) * 1.0 / reading_max) * duty_min;
 }
 
-void ambientlight_dimmer(void *taskArg) {
+void ambientlight_task(void *arg) {
   uint16_t value;
   uint16_t duty;
+  
+  do {
+    // fill average with initial value once
+    uint16_t first = adc1_get_raw(dimmer.adc);
+    for (int i = 0; i < AVERAGE_POINTS; i++) {
+      dimmer.avg.buf[i] = first;
+    };
+  } while (0);
+
   for (;;) {
-    value = moving_average(&filament.avg, adc1_get_raw(filament.adc));
+    value = moving_average(&dimmer.avg, adc1_get_raw(dimmer.adc));
     duty = ambientmap(value, 600, 200);
-    ledc_set_duty(filament.mode, filament.channel, duty);
-    ledc_update_duty(filament.mode, filament.channel);
+    ledc_set_duty(dimmer.mode, dimmer.channel, duty);
+    ledc_update_duty(dimmer.mode, dimmer.channel);
     vTaskDelay(100 / portTICK_RATE_MS);
   }
 }
 
-void ambientlight_dimmer_init(adc1_channel_t sensor, gpio_num_t filshdn) {
+void ambientlight_init(adc1_channel_t sensor, gpio_num_t filshdn, TaskHandle_t *task) {
 
   // set variables in global struct
-  filament.mode = LEDC_HIGH_SPEED_MODE;
-  filament.timer = LEDC_TIMER_0;
-  filament.channel = LEDC_CHANNEL_0;
-  filament.adc = sensor;
-  filament.pin = filshdn;
+  dimmer.mode = LEDC_HIGH_SPEED_MODE;
+  dimmer.timer = LEDC_TIMER_0;
+  dimmer.channel = LEDC_CHANNEL_0;
+  dimmer.adc = sensor;
+  dimmer.pin = filshdn;
 
   ledc_timer_config_t pwmcfg = {
     .freq_hz = 60000,
-    .speed_mode = filament.mode,
-    .timer_num = filament.timer,
+    .speed_mode = dimmer.mode,
+    .timer_num = dimmer.timer,
     .duty_resolution = 8,
     .clk_cfg = LEDC_AUTO_CLK,
   };
-  ledc_timer_config(&pwmcfg);
+  ESP_ERROR_CHECK(ledc_timer_config(&pwmcfg));
   
   ledc_channel_config_t pwmchan = {
-    .channel = filament.channel,
+    .channel = dimmer.channel,
     .duty = 0,
-    .gpio_num = filament.pin,
-    .speed_mode = filament.mode,
+    .gpio_num = dimmer.pin,
+    .speed_mode = dimmer.mode,
     .hpoint = 0,
-    .timer_sel = filament.timer,
+    .timer_sel = dimmer.timer,
   };
-  ledc_channel_config(&pwmchan);
-  ESP_LOGI("filament dimmer", "initialized");
+  ESP_ERROR_CHECK(ledc_channel_config(&pwmchan));
+  ESP_LOGI(TAG, "pwm initialized");
 
   adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(filament.adc, ADC_ATTEN_DB_0);
-  ESP_LOGI("filament dimmer", "adc configured");
-
-  // ERROR: getting spurious stack overflows with 512 here ..
-  // Find out why the stack won't stay the same size forever?
-  xTaskCreate(ambientlight_dimmer, "ambient light dimmer", 1024, NULL, 10, NULL);
-  ESP_LOGI("filament dimmer", "task created");
+  adc1_config_channel_atten(dimmer.adc, ADC_ATTEN_DB_0);
+  xTaskCreate(ambientlight_task, TAG, 1024, NULL, 10, task);
+  ESP_LOGI(TAG, "adc configured & task created");
 
 }
 

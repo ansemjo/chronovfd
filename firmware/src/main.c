@@ -142,41 +142,53 @@ void app_main() {
   }
   ESP_ERROR_CHECK(err);
 
-  vfd_handle_t *vfd = chronovfd_init();
-  
-  // Pin 4, SENSOR_VP == GPIO 36 == ADC1 Channel 0
-  ambientlight_dimmer_init(ADC1_CHANNEL_0, vfd->pin.fil_shdn);
+  // initialize vacuum flourescent display
+  vfd_pin_t vfdcfg = {
+    .enable    = VFD_PIN_ENABLE,
+    .clock     = VFD_PIN_CLOCK,
+    .data      = VFD_PIN_DATA,
+    .strobe    = VFD_PIN_STROBE,
+    .blank     = VFD_PIN_BLANK,
+    .fil_shdn  = VFD_PIN_FILSHDN,
+    .hv_shdn   = VFD_PIN_HVSHDN,
+  };
+  vfd_init_spi(&vfdcfg);
+  TaskHandle_t digitmux;
+  vfd_init_mux(0.002, &digitmux);
 
+  // initialize filament dimmer via photodiode
+  TaskHandle_t ambientlight;
+  ambientlight_init(PHOTODIODE, vfdcfg.fil_shdn, &ambientlight);
+
+  // connect to battery-backed rtc
   realtimeclock_init(I2C_SDA, I2C_SCL);
   realtimeclock_read_from_rtc();
 
+  // set timezone to Europe/Berlin
   // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
   tzset();
 
+  // display the current time
   TaskHandle_t clock;
-  xTaskCreate((TaskFunction_t)clockface_task, "clockface", 4096, vfd, 10, &clock);
-  // xTaskCreatePinnedToCore(timedisplay_task, "clockface", 4096, vfd, 10, &clock, 1);
-
-  // try to configure wifi with provisioning and sync time
-  // caution: display begins to flicker while wifi is active
-  // TODO: needs more "state machine" work: when to sync? block during provisioning?
-  // TODO: connect wifi after provisioning? etc. ... but works for me™ already
-
+  clockface(&clock);
+  
   vTaskDelay(3000/portTICK_RATE_MS);
-  // timer_set_alarm_value(0, 0, 0.006 * (TIMER_BASE_CLK / 80));
+  
+  // enable wifi and synchronize time via ntp  
   vTaskSuspend(clock);
-  TaskHandle_t spinner;
-  xTaskCreate((TaskFunction_t)animation_task_spinner, "spinner", 1024, vfd, 2, &spinner);
-  // vfd_text(vfd, "sn tp");
-  ESP_LOGI("chronovfd", "enable wifi");
+  TaskHandle_t loading;
+  animation_spinner(&loading);
+  
+  ESP_LOGI("main", "enable wifi");
   wifi_init();
-  if (sntp_sync(20000 / portTICK_RATE_MS) == ESP_OK)
-    realtimeclock_update_rtc();
-  ESP_LOGI("chronovfd", "done, stop wifi");
+  
+  sntp_sync(pdMS_TO_TICKS(20000));
+  
+  ESP_LOGI("main", "stop wifi");
   esp_wifi_stop();
-  // timer_set_alarm_value(0, 0, 0.002 * (TIMER_BASE_CLK / 80));
-  vTaskDelete(spinner);
+  
+  vTaskDelete(loading);
   vTaskResume(clock);
   
 }

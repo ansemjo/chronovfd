@@ -14,7 +14,8 @@ void realtimeclock_update_rtc();
 void realtimeclock_update_rtc_fixedtime(const char *timestamp);
 
 // tasks
-void clockface_task(vfd_handle_t *arg);
+void clockface_task(void *arg);
+void clockface(TaskHandle_t *task);
 
 // internet time synchronization
 const char* sntp_servers[2];

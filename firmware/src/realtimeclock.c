@@ -3,6 +3,7 @@
 #include <sys/time.h>
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <esp_sntp.h>
 #include <esp_log.h>
@@ -15,7 +16,7 @@
 
 #define RTC_TAG "realtimeclock"
 
-i2c_dev_t ds13xx = { 0 };
+static i2c_dev_t ds13xx;
 
 // check if the rtc is configured as expected and return if everything was ok
 esp_err_t realtimeclock_check_configuration(i2c_dev_t *rtc) {
@@ -117,7 +118,7 @@ void realtimeclock_update_rtc_fixedtime(const char *timestamp) {
 // display the current clock in HH:MM on the display.
 // assumes that the system rtc is synchronized with the external
 // battery-backed source, so posix time() is used.
-void clockface_task(vfd_handle_t *vfd) {
+void clockface_task(void *arg) {
 
   time_t now;
   struct tm t;
@@ -128,10 +129,14 @@ void clockface_task(vfd_handle_t *vfd) {
     localtime_r(&now, &t);
     snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
       t.tm_hour, (t.tm_sec % 2) == 0 ? ':' : ' ', t.tm_min);
-    vfd_text(vfd, timebuf);
+    vfd_text(timebuf);
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 
+}
+
+void clockface(TaskHandle_t *task) {
+  xTaskCreate(clockface_task, "clockface", 2048, NULL, 10, task);
 }
 
 // -------------------- sntp time synchronization --------------------
@@ -142,7 +147,7 @@ const char* sntp_servers[2] = {
   "1.de.pool.ntp.org",
 };
 
-SemaphoreHandle_t sntp_sync_done = NULL;
+static SemaphoreHandle_t sntp_sync_done;
 void sntp_sync_callback() {
   ESP_LOGI(SNTP_TAG, "successfully synchronized");
   xSemaphoreGive(sntp_sync_done);
@@ -168,6 +173,7 @@ esp_err_t sntp_sync(TickType_t timeout) {
   ESP_LOGI(SNTP_TAG, "waiting %.1fs for synchronization", (double)timeout / configTICK_RATE_HZ);
   if (xSemaphoreTake(sntp_sync_done, timeout)) {
     err = ESP_OK;
+    realtimeclock_update_rtc();
   } else {
     err = ESP_ERR_TIMEOUT;
     ESP_LOGW(SNTP_TAG, "timeout! failed to synchronize time");

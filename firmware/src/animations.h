@@ -1,5 +1,6 @@
 #pragma once
 
-#include "vfddriver.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
-void animation_task_spinner(vfd_handle_t *vfd);
+void animation_spinner(TaskHandle_t *task);
