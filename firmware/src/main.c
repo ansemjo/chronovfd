@@ -100,6 +100,43 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
   }
 }
 
+void wifi_provision() {
+
+  tcpip_adapter_init();
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+  bool provisioned = false;
+  ESP_ERROR_CHECK(app_prov_is_provisioned(&provisioned));
+  if (!provisioned) {
+
+    TaskHandle_t loading;
+    animation_textfader(&loading, "Conf");
+
+    ESP_LOGI("chronovfd", "begin wifi provisioning");
+    // https://github.com/espressif/esp-idf/blob/v4.0.1/examples/provisioning/ble_prov/main/app_main.c
+    
+    wifi_prov_security_t sec = WIFI_PROV_SECURITY_0;
+    const protocomm_security_pop_t *pop = NULL;
+    ESP_ERROR_CHECK(app_prov_start_ble_provisioning(sec, pop));
+    
+    // once provisioning is started wait until its data struct is freed
+    while (g_prov != NULL) {
+      vTaskDelay(pdMS_TO_TICKS(500));
+    }
+
+    vTaskDelete(loading);
+  
+  };
+
+  esp_wifi_stop();
+  esp_wifi_deinit();
+  esp_event_loop_delete_default();
+
+
+}
+
 void wifi_init() {
 
   static char* tag = "chronowifi";
@@ -109,20 +146,6 @@ void wifi_init() {
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-  bool provisioned = false;
-  ESP_ERROR_CHECK(app_prov_is_provisioned(&provisioned));
-  if (!provisioned) {
-
-    ESP_LOGI(tag, "begin wifi provisioning");
-    // https://github.com/espressif/esp-idf/blob/v4.0.1/examples/provisioning/ble_prov/main/app_main.c
-    
-    wifi_prov_security_t sec = WIFI_PROV_SECURITY_0;
-    const protocomm_security_pop_t *pop = NULL;
-    ESP_ERROR_CHECK(app_prov_start_ble_provisioning(sec, pop));
-    // TODO: block here until provisioning is done
-  
-  };
 
   ESP_LOGI(tag, "starting station");
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
@@ -160,6 +183,8 @@ void app_main() {
   TaskHandle_t ambientlight;
   ambientlight_init(PHOTODIODE, vfdcfg.fil_shdn, &ambientlight);
 
+  wifi_provision();
+
   // connect to battery-backed rtc
   realtimeclock_init(I2C_SDA, I2C_SCL);
   realtimeclock_read_from_rtc();
@@ -178,7 +203,7 @@ void app_main() {
   // enable wifi and synchronize time via ntp  
   vTaskSuspend(clock);
   TaskHandle_t loading;
-  animation_textfader(&loading, "conf");
+  animation_spinner(&loading);
   
   ESP_LOGI("main", "enable wifi");
   wifi_init();
@@ -187,6 +212,8 @@ void app_main() {
   
   ESP_LOGI("main", "stop wifi");
   esp_wifi_stop();
+  esp_wifi_deinit();
+  esp_event_loop_delete_default();
   
   vTaskDelete(loading);
   vTaskResume(clock);

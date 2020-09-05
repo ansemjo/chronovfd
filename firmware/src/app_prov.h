@@ -79,3 +79,7 @@ esp_err_t app_prov_configure_sta(wifi_config_t *wifi_cfg);
  *  - ESP_FAIL    : Failed to start
  */
 esp_err_t app_prov_start_ble_provisioning(int security, const protocomm_security_pop_t *pop);
+
+
+// expose struct
+struct app_prov_data *g_prov;
