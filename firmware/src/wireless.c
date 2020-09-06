@@ -16,6 +16,7 @@
 #include <wifi_provisioning/scheme_ble.h>
 
 #include "animations.h"
+#include "wireless.h"
 
 // tag for logging
 static const char *tag = "wireless";
@@ -116,6 +117,9 @@ void wireless_begin() {
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
+  wireless_provision();
+  ESP_ERROR_CHECK(esp_wifi_start());
+
 }
 
 void wireless_end() {
@@ -133,12 +137,19 @@ void wireless_provision() {
   // https://github.com/espressif/esp-idf/blob/v4.0.1/examples/provisioning/manager/main/app_main.c#L152
   // https://docs.espressif.com/projects/esp-idf/en/v4.0.1/api-reference/provisioning/wifi_provisioning.html
   
-  ESP_LOGI(tag, "start provisioning with BLE method");
   wifi_prov_mgr_config_t provcfg = {
     .scheme = wifi_prov_scheme_ble,
     .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
   };
   ESP_ERROR_CHECK(wifi_prov_mgr_init(provcfg));
+
+  // check if already provisioned
+  bool provisioned = false;
+  ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
+  if (provisioned) {
+    ESP_LOGI(tag, "credentials already provisioned");
+    goto deinit;
+  }
 
   TaskHandle_t conffader;
   animation_textfader(&conffader, "Prov");
@@ -159,11 +170,16 @@ void wireless_provision() {
   ESP_ERROR_CHECK(wifi_prov_scheme_ble_set_service_uuid(example_service_uuid));
 
   // begin provisioning
+  ESP_LOGI(tag, "start provisioning with BLE method");
   ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(sec, pop, service_name, key));
 
   // block until provisioning is done and connection is established
+  wifi_prov_mgr_wait();
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, false, true, portMAX_DELAY);
   vTaskDelete(conffader);
   ESP_LOGI(tag, "provisioning done");
+
+  // deinit the provisioning manager at the end
+  deinit: wifi_prov_mgr_deinit();
 
 }

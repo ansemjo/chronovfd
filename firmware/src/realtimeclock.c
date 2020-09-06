@@ -66,7 +66,7 @@ void realtimeclock_init(gpio_num_t sda, gpio_num_t scl) {
 }
 
 // update system time from battery-backed rtc
-void realtimeclock_read_from_rtc() {
+time_t realtimeclock_read_from_rtc() {
 
   struct tm t;
   ESP_ERROR_CHECK(ds1307_get_time(&ds13xx, &t));
@@ -74,6 +74,10 @@ void realtimeclock_read_from_rtc() {
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
   struct timeval tv = { mktime(&t), 0 };
   settimeofday(&tv, NULL);
+
+  time_t lastsync = realtimeclock_get_lastsync();
+  ESP_LOGI(RTC_TAG, "rtc was last synchronized on %s", ctime(&lastsync));
+  return lastsync;
 
 }
 
@@ -88,6 +92,7 @@ void realtimeclock_update_rtc() {
   ESP_LOGI(RTC_TAG, "setting datetime in rtc: %04d-%02d-%02d %02d:%02d:%02d UTC",
     t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
   ESP_ERROR_CHECK(ds1307_set_time(&ds13xx, &t));
+  realtimeclock_set_lastsync(now);
 
 }
 
@@ -111,6 +116,19 @@ void realtimeclock_update_rtc_fixedtime(const char *timestamp) {
   settimeofday(&tv, NULL);
   realtimeclock_update_rtc();
 
+}
+
+// offsets in rtc sram for different values
+#define RTC_VAL_LASTSYNC 0
+
+void realtimeclock_set_lastsync(time_t t) {
+  ESP_ERROR_CHECK(ds1307_write_ram(&ds13xx, RTC_VAL_LASTSYNC, (void*)&t, sizeof(time_t)));
+}
+
+time_t realtimeclock_get_lastsync() {
+  time_t t;
+  ESP_ERROR_CHECK(ds1307_read_ram(&ds13xx, RTC_VAL_LASTSYNC, (void*)&t, sizeof(time_t)));
+  return t;
 }
 
 // -------------------- display tasks --------------------

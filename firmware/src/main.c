@@ -28,12 +28,23 @@
 #include "animations.h"
 #include "wireless.h"
 
+#define SECONDS configTICK_RATE_HZ
+
 // turn on the usr led, yay
 #define LED 5
 void led_init() {
   gpio_set_direction(LED, GPIO_MODE_OUTPUT);
   gpio_set_level(LED, 1);
 }
+
+/*
+  TODO LIST
+  - periodic task that starts sntp on schedule
+  - check provisioning state without enabling wifi on boot?
+  - disable wifi until next sntp sync
+  - wait until ip address assignment before attempting sntp
+  - erase nvs and reprovision on long gpio0 button press
+*/
 
 void app_main() {
 
@@ -63,15 +74,15 @@ void app_main() {
   TaskHandle_t ambientlight;
   ambientlight_init(PHOTODIODE, vfdcfg.fil_shdn, &ambientlight);
 
-  // TODO: new provisioning attempt
-  nvs_flash_erase(); // always clear creds to force conf
+  // enable and possibly provision credentials the first time
+  // nvs_flash_erase(); // always clear creds to force conf
   wireless_init();
   wireless_begin();
-  wireless_provision();
 
   // connect to battery-backed rtc
+  time_t lastsync;
   realtimeclock_init(I2C_SDA, I2C_SCL);
-  realtimeclock_read_from_rtc();
+  lastsync = realtimeclock_read_from_rtc();
 
   // set timezone to Europe/Berlin
   // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
@@ -82,17 +93,23 @@ void app_main() {
   TaskHandle_t clock;
   clockface(&clock);
   
-  vTaskDelay(3000/portTICK_RATE_MS);
-  
   // enable wifi and synchronize time via ntp  
-  vTaskSuspend(clock);
-  TaskHandle_t loading;
-  animation_spinner(&loading);
-  
-  sntp_sync(pdMS_TO_TICKS(20000));
-  wireless_end();
-  
-  vTaskDelete(loading);
-  vTaskResume(clock);
+  time_t now;
+  time(&now);
+  if (lastsync > now || now - lastsync > 180) {
+
+    ESP_LOGI("main", "last sync more than three minutes ago .. synchronize now");
+
+    vTaskSuspend(clock);
+    TaskHandle_t loading;
+    animation_spinner(&loading);
+
+    sntp_sync(60 * SECONDS);
+    // wireless_end();
+
+    vTaskDelete(loading);
+    vTaskResume(clock);
+
+  }
   
 }

@@ -9,9 +9,11 @@
 
 // battery-backed ds13xx i2c rtc
 void realtimeclock_init(gpio_num_t sda, gpio_num_t scl);
-void realtimeclock_read_from_rtc();
+time_t realtimeclock_read_from_rtc();
 void realtimeclock_update_rtc();
 void realtimeclock_update_rtc_fixedtime(const char *timestamp);
+time_t realtimeclock_get_lastsync();
+void realtimeclock_set_lastsync(time_t t);
 
 // tasks
 void clockface_task(void *arg);
