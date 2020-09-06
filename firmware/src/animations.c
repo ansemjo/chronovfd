@@ -179,6 +179,6 @@ void animation_textfader_task(void *arg) {
 
 }
 
-void animation_textfader(TaskHandle_t *task, const char text[4]) {
+void animation_textfader(TaskHandle_t *task, char text[4]) {
   xTaskCreate(animation_textfader_task, "anim:textfader", 1024, text, 2, task);
 }
