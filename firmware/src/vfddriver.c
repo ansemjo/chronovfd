@@ -89,6 +89,9 @@ void vfd_init_spi(vfd_pin_t *pin) {
   gpio_init_output( vfd.pin.hv_shdn,  1 ); // high-voltage supply on
   gpio_init_output( vfd.pin.enable,   0 ); // enable level shifter
 
+  // set all hv pins to off once
+  vfd_transmit(0);
+
 }
 
 // write text into the buffer from which digit multiplexing is performed.
@@ -169,6 +172,9 @@ void vfd_init_mux(double period, TaskHandle_t *task) {
   ESP_ERROR_CHECK(timer_enable_intr(VFD_TIMER));
   ESP_ERROR_CHECK(timer_isr_register(VFD_TIMER, vfd_digitmux_isr, NULL, 0, NULL));
   ESP_ERROR_CHECK(timer_start(VFD_TIMER));
+
+  // explicitly zero the display buffer
+  bzero(vfd.buf, sizeof(vfd.buf));
 
   // create mux task and return its handle
   xTaskCreate(vfd_digitmux_task, "digitmux", 2048, NULL, 20, task);
