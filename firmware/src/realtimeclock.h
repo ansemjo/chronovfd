@@ -22,3 +22,4 @@ void clockface(TaskHandle_t *task);
 // internet time synchronization
 const char* sntp_servers[2];
 esp_err_t sntp_sync(TickType_t timeout);
+void sntp_sync_schedule(void *arg);

@@ -76,7 +76,9 @@ time_t realtimeclock_read_from_rtc() {
   settimeofday(&tv, NULL);
 
   time_t lastsync = realtimeclock_get_lastsync();
-  ESP_LOGI(RTC_TAG, "rtc was last synchronized on %s", ctime(&lastsync));
+  gmtime_r(&lastsync, &t);
+  ESP_LOGI(RTC_TAG, "rtc last synchronized on:  %04d-%02d-%02d %02d:%02d:%02d UTC",
+    t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
   return lastsync;
 
 }
@@ -201,4 +203,35 @@ esp_err_t sntp_sync(TickType_t timeout) {
   sntp_stop();
   return err;
   
+}
+
+#define sched_hour   5
+#define sched_min    0
+
+void sntp_sync_schedule(void *arg) {
+
+  time_t now;
+  struct tm t;
+
+  time(&now);
+  localtime_r(&now, &t);
+  uint32_t wait = 0;
+
+  // convert scheduled and current time to "seconds of a day"
+  uint32_t scheduled = ((sched_hour * 60) + sched_min) * 60;
+  uint32_t nowsecs   = ((t.tm_hour  * 60) + t.tm_min ) * 60 + t.tm_sec;
+
+  // calculate the seconds until next scheduled time
+  if (nowsecs < scheduled) {
+    wait = scheduled - nowsecs;
+  } else {
+    // add remainder of day and scheduled time
+    wait = scheduled + ((24 * 60 * 60) - nowsecs);
+  };
+
+  // delay until scheduled time
+  ESP_LOGI("schedule", "next sntp synchronization at %02d:%02d in %d seconds",
+    sched_hour, sched_min, wait);
+  vTaskDelay(wait * configTICK_RATE_HZ);
+
 }

@@ -39,12 +39,36 @@ void led_init() {
 
 /*
   TODO LIST
-  - periodic task that starts sntp on schedule
-  - check provisioning state without enabling wifi on boot?
-  - disable wifi until next sntp sync
-  - wait until ip address assignment before attempting sntp
   - erase nvs and reprovision on long gpio0 button press
+  - manage "foreground" task in stack with push/pop
+  - use the temperature sensor
 */
+
+void do_sync(TaskHandle_t clock) {
+
+  esp_err_t err;
+  if (clock) vTaskSuspend(clock);
+  TaskHandle_t loading;
+  animation_spinner(&loading);
+
+  wireless_connect();
+  err = xEventGroupWaitBits(wireless, WIFI_CONNECTED, false, true, 30 * SECONDS);
+  if (err == ESP_ERR_TIMEOUT) goto fail;
+  err = sntp_sync(60 * SECONDS);
+  if (err == ESP_ERR_TIMEOUT) goto fail;
+  wireless_disconnect();
+  goto out;
+
+  fail:
+  vTaskSuspend(loading);
+  vfd_text("FAIL");
+  vTaskDelay(2 * SECONDS);
+
+  out:
+  vTaskDelete(loading);
+  if (clock) vTaskResume(clock);
+
+}
 
 void app_main() {
 
@@ -74,43 +98,35 @@ void app_main() {
   TaskHandle_t ambientlight;
   ambientlight_init(PHOTODIODE, vfdcfg.fil_shdn, &ambientlight);
 
-  // enable and possibly provision credentials the first time
-  // nvs_flash_erase(); // always clear creds to force conf
-  wireless_init();
-  wireless_provision();
-
   // connect to battery-backed rtc
-  time_t lastsync;
   realtimeclock_init(I2C_SDA, I2C_SCL);
-  lastsync = realtimeclock_read_from_rtc();
+  time_t lastsync = realtimeclock_read_from_rtc();
 
   // set timezone to Europe/Berlin
   // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
   setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
   tzset();
 
+  // enable and possibly provision credentials the first time
+  // nvs_flash_erase(); // always clear creds to force conf
+  wireless_init();
+  wireless_provision();
+
+  // maybe sync once on startup
+  time_t now;
+  time(&now);
+  if ((lastsync == 0) || (lastsync > now) || ((now - lastsync) > (60 * 60))) {
+    ESP_LOGI("main", "last sync more than an hour ago");
+    do_sync(NULL);
+  }
+
   // display the current time
   TaskHandle_t clock;
   clockface(&clock);
   
-  // enable wifi and synchronize time via ntp  
-  time_t now;
-  time(&now);
-  if (lastsync > now || now - lastsync > 10) {
-
-    ESP_LOGI("main", "last sync more than three minutes ago .. synchronize now");
-
-    vTaskSuspend(clock);
-    TaskHandle_t loading;
-    animation_spinner(&loading);
-
-    wireless_connect();
-    sntp_sync(60 * SECONDS);
-    wireless_disconnect();
-
-    vTaskDelete(loading);
-    vTaskResume(clock);
-
+  for (;;) {
+    sntp_sync_schedule(NULL);
+    do_sync(clock);
   }
 
   wireless_end();
