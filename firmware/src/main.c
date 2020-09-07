@@ -33,7 +33,7 @@
 // turn on the usr led, yay
 #define LED 5
 void led_init() {
-  gpio_set_direction(LED, GPIO_MODE_OUTPUT);
+  
   gpio_set_level(LED, 1);
 }
 
@@ -70,6 +70,55 @@ void do_sync(TaskHandle_t clock) {
 
 }
 
+TaskHandle_t factory_reset;
+
+void factory_reset_task(void *arg) {
+
+  ESP_LOGW("factory_reset", "button pressed");
+  TickType_t t = xTaskGetTickCount();
+  for (int i = 0; i < 5; i++) {
+    ESP_LOGW("factory_reset", "in %d ...", 5 - i);
+    gpio_set_level(LED, 1);
+    vTaskDelayUntil(&t, 0.2 * SECONDS);
+    gpio_set_level(LED, 0);
+    vTaskDelayUntil(&t, 0.8 * SECONDS);
+  }
+  gpio_set_level(LED, 1);
+  ESP_LOGW("factory_reset", "erase nvs partition & reboot");
+  nvs_flash_erase();
+  esp_restart();
+
+}
+
+static void IRAM_ATTR factory_reset_isr(void *arg) {
+
+  int level = gpio_get_level(GPIO_NUM_0);
+  if (!level) {
+    // falling edge, button press
+    xTaskCreate(factory_reset_task, "factory reset", 2048, NULL, ESP_TASK_PRIO_MIN + 1, &factory_reset);
+  } else {
+    // rising edge, release
+    if (factory_reset) vTaskDelete(factory_reset);
+    gpio_set_level(LED, 0);
+  }
+
+}
+
+void factory_reset_watcher_init() {
+
+  gpio_config_t factrst = {
+    .mode = GPIO_MODE_INPUT,
+    .pin_bit_mask = (1ULL << GPIO_NUM_0),
+    .pull_up_en = true,
+    .intr_type = GPIO_INTR_ANYEDGE,
+  };
+  gpio_config(&factrst);
+
+  gpio_install_isr_service(0);
+  gpio_isr_handler_add(GPIO_NUM_0, factory_reset_isr, NULL);
+
+}
+
 void app_main() {
 
   // initialize nonvolatile storage
@@ -79,6 +128,11 @@ void app_main() {
     err = nvs_flash_init();
   }
   ESP_ERROR_CHECK(err);
+
+  // init usr led
+  gpio_set_direction(LED, GPIO_MODE_OUTPUT);
+  gpio_set_level(LED, 0);
+  factory_reset_watcher_init();
 
   // initialize vacuum flourescent display
   vfd_pin_t vfdcfg = {
