@@ -77,7 +77,7 @@ void app_main() {
   // enable and possibly provision credentials the first time
   // nvs_flash_erase(); // always clear creds to force conf
   wireless_init();
-  wireless_begin();
+  wireless_provision();
 
   // connect to battery-backed rtc
   time_t lastsync;
@@ -96,7 +96,7 @@ void app_main() {
   // enable wifi and synchronize time via ntp  
   time_t now;
   time(&now);
-  if (lastsync > now || now - lastsync > 180) {
+  if (lastsync > now || now - lastsync > 10) {
 
     ESP_LOGI("main", "last sync more than three minutes ago .. synchronize now");
 
@@ -104,12 +104,15 @@ void app_main() {
     TaskHandle_t loading;
     animation_spinner(&loading);
 
+    wireless_connect();
     sntp_sync(60 * SECONDS);
-    // wireless_end();
+    wireless_disconnect();
 
     vTaskDelete(loading);
     vTaskResume(clock);
 
   }
+
+  wireless_end();
   
 }

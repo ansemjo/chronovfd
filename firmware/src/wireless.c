@@ -21,9 +21,9 @@
 // tag for logging
 static const char *tag = "wireless";
 
-/* Signal Wi-Fi events on this event-group */
-const int WIFI_CONNECTED_EVENT = BIT0;
-static EventGroupHandle_t wifi_event_group;
+// global event group for status bits
+EventGroupHandle_t wireless;
+
 
 // return a service name for provisioning
 static void get_device_name(char *name, size_t max) {
@@ -34,18 +34,34 @@ static void get_device_name(char *name, size_t max) {
     snprintf(name, max, "%s%02X%02X%02X", prefix, mac[3], mac[4], mac[5]);
 }
 
+
 static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
   static const char *tag = "wireless_event_handler";
+
   if (event_base == WIFI_EVENT) {
-    static char* tag = "wifi";
     switch (event_id) {
 
       case WIFI_EVENT_STA_DISCONNECTED:
-        ESP_LOGI(tag, "wifi disconnected. trying to connect again ...");
-        __attribute__((fallthrough));
+        xEventGroupClearBits(wireless, WIFI_ASSOCIATED);
+        if (!(xEventGroupGetBits(wireless) & WIFI_WANTED)) {
+          ESP_LOGI(tag, "station disconnected");
+          break;
+        } else {
+          ESP_LOGI(tag, "station disconnected, trying to connect again ...");
+          __attribute__((fallthrough));
+        };
       case WIFI_EVENT_STA_START:
         esp_wifi_connect();
         break;
+
+      case WIFI_EVENT_STA_CONNECTED: {
+        wifi_event_sta_connected_t *data = event_data;
+        ESP_LOGI(tag, "station connected to '%s' [%02X:%02X:%02X:%02X:%02X:%02X]",
+          data->ssid, data->bssid[0], data->bssid[1], data->bssid[2],
+          data->bssid[3], data->bssid[4], data->bssid[5]);
+          xEventGroupSetBits(wireless, WIFI_ASSOCIATED);
+        break;
+      }
 
       default:
         break;
@@ -54,11 +70,15 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
   } else if (event_base == IP_EVENT) {
     switch (event_id) {
 
-      case IP_EVENT_STA_GOT_IP: {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(tag, "received IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+      case IP_EVENT_STA_GOT_IP:
+        ESP_LOGI(tag, "station received ip address");
+        xEventGroupSetBits(wireless, WIFI_CONNECTED);
         break;
-      }
+
+      case IP_EVENT_STA_LOST_IP:
+        ESP_LOGW(tag, "station lost ip address");
+        xEventGroupClearBits(wireless, WIFI_CONNECTED);
+        break;
 
       default:
         break;
@@ -68,22 +88,20 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
     switch (event_id) {
 
       case WIFI_PROV_START:
-        ESP_LOGI(tag, "provisioning started");
+        xEventGroupClearBits(wireless, WIFI_PROVISIONED);
         break;
 
       case WIFI_PROV_CRED_RECV: {
         wifi_sta_config_t *wifi_sta_cfg = (wifi_sta_config_t *)event_data;
-        ESP_LOGI(tag, "received credentials for SSID %s", (const char *) wifi_sta_cfg->ssid);
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_EVENT);
+        ESP_LOGI(tag, "received credentials for SSID '%s'", (const char *) wifi_sta_cfg->ssid);
         break;
       }
 
       case WIFI_PROV_CRED_SUCCESS:
-        ESP_LOGI(tag, "provisioning success");
+        ESP_LOGI(tag, "provisioning success!");
         break;
 
       case WIFI_PROV_END:
-        ESP_LOGI(tag, "provisioning finished, deinit manager ..");
         wifi_prov_mgr_deinit();
         break;
 
@@ -96,20 +114,13 @@ static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_
 
 void wireless_init() {
 
-  ESP_LOGI(tag, "initialize TCP/IP stack, create event group");
+  if (!wireless)
+    wireless = xEventGroupCreate();
+
+  ESP_LOGI(tag, "initialize tcp/ip and wifi stack");
   tcpip_adapter_init();
-  wifi_event_group = xEventGroupCreate();
-  if (wifi_event_group == NULL)
-    ESP_ERROR_CHECK(ESP_ERR_NO_MEM);
-
-}
-
-void wireless_begin() {
-
-  ESP_LOGI(tag, "start wifi stack");
   ESP_ERROR_CHECK(esp_event_loop_create_default());
   
-  ESP_LOGI(tag, "register event handlers");
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
@@ -117,19 +128,30 @@ void wireless_begin() {
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-  wireless_provision();
-  ESP_ERROR_CHECK(esp_wifi_start());
+  xEventGroupSetBits(wireless, WIFI_INITIALIZED);
 
 }
 
 void wireless_end() {
 
-  ESP_LOGI(tag, "stop and deinit");
-  ESP_ERROR_CHECK(esp_wifi_stop());
+  ESP_LOGI(tag, "deinit wifi stack");
   ESP_ERROR_CHECK(esp_wifi_deinit());
   ESP_ERROR_CHECK(esp_event_loop_delete_default());
 
+  xEventGroupClearBits(wireless, WIFI_INITIALIZED);
+
 }
+
+// wrappers around wifi start/stop to connect to configured station
+void wireless_connect() {
+  xEventGroupSetBits(wireless, WIFI_WANTED);
+  ESP_ERROR_CHECK(esp_wifi_start());
+}
+void wireless_disconnect() {
+  xEventGroupClearBits(wireless, WIFI_WANTED);
+  ESP_ERROR_CHECK(esp_wifi_stop());
+}
+
 
 void wireless_provision() {
 
@@ -148,7 +170,8 @@ void wireless_provision() {
   ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
   if (provisioned) {
     ESP_LOGI(tag, "credentials already provisioned");
-    goto deinit;
+    wifi_prov_mgr_deinit();
+    goto success;
   }
 
   TaskHandle_t conffader;
@@ -175,11 +198,10 @@ void wireless_provision() {
 
   // block until provisioning is done and connection is established
   wifi_prov_mgr_wait();
-  xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, false, true, portMAX_DELAY);
   vTaskDelete(conffader);
-  ESP_LOGI(tag, "provisioning done");
+  ESP_LOGI(tag, "provisioning completed");
 
-  // deinit the provisioning manager at the end
-  deinit: wifi_prov_mgr_deinit();
+  // signify successful provisioning
+  success: xEventGroupSetBits(wireless, WIFI_PROVISIONED);
 
 }
