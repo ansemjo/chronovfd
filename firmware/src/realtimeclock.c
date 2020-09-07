@@ -119,6 +119,7 @@ void realtimeclock_update_rtc_fixedtime(const char *timestamp) {
 }
 
 // offsets in rtc sram for different values
+// ds1338 --> max. 56 bytes before wrapping to datetime values
 #define RTC_VAL_LASTSYNC 0
 
 void realtimeclock_set_lastsync(time_t t) {
@@ -141,6 +142,7 @@ void clockface_task(void *arg) {
   time_t now;
   struct tm t;
   char timebuf[6];
+  TickType_t lastwake = xTaskGetTickCount();
 
   for (;;) {
     time(&now);
@@ -148,7 +150,7 @@ void clockface_task(void *arg) {
     snprintf(timebuf, sizeof(timebuf), "%02d%c%02d",
       t.tm_hour, (t.tm_sec % 2) == 0 ? ':' : ' ', t.tm_min);
     vfd_text(timebuf);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelayUntil(&lastwake, pdMS_TO_TICKS(100));
   }
 
 }

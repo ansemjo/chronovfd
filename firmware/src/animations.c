@@ -11,6 +11,7 @@ void animation_spinner_task(void *arg) {
 
   // delay between animation frames
   TickType_t dl = 80 * portTICK_RATE_MS;
+  TickType_t last = xTaskGetTickCount();
 
   // animate intro
   uint16_t intro[][GRIDS] = {
@@ -19,7 +20,7 @@ void animation_spinner_task(void *arg) {
   };
   for (int i = 0; i < (sizeof(intro)/sizeof(intro[0])); i++) {
     vfd_raw(intro[i]);
-    vTaskDelay(dl);
+    vTaskDelayUntil(&last, dl);
   }
   
   // infinite loop of main animation
@@ -33,7 +34,7 @@ void animation_spinner_task(void *arg) {
   };
   for (int i = 0;; i = (i + 1) % (sizeof(animation)/sizeof(animation[0]))) {
     vfd_raw(animation[i]);
-    vTaskDelay(dl);
+    vTaskDelayUntil(&last, dl);
   }
 
 }
@@ -48,10 +49,11 @@ void animation_fader_task(void *arg) {
 
   // delay between animation frames
   TickType_t dl = 20 * portTICK_RATE_MS;
+  TickType_t last = xTaskGetTickCount();
 
   // empty intro frame
   vfd_raw((uint16_t[GRIDS]){ 0, 0, 0, 0, 0 });
-  vTaskDelay(dl);
+  vTaskDelayUntil(&last, dl);
   
   // helper variables
   uint16_t left = Aa|Ad|Ae|Af;
@@ -105,7 +107,7 @@ void animation_fader_task(void *arg) {
         break;
     }
     vfd_raw((uint16_t[GRIDS]){ g1, g2, 0, g4, g5 });
-    vTaskDelay(dl);
+    vTaskDelayUntil(&last, dl);
   }
 
 }
@@ -118,6 +120,7 @@ void animation_textfader_task(void *arg) {
 
   // delay between animation frames
   TickType_t dl = 20 * portTICK_RATE_MS;
+  TickType_t last = xTaskGetTickCount();
 
   // helper variables
   uint16_t left = Ad|Ae|Af;
@@ -174,7 +177,7 @@ void animation_textfader_task(void *arg) {
         break;
     }
     vfd_raw((uint16_t[GRIDS]){ g1, g2, 0, g4, g5 });
-    vTaskDelay(dl);
+    vTaskDelayUntil(&last, dl);
   }
 
 }

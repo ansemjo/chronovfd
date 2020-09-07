@@ -53,6 +53,7 @@ unsigned ambientmap(unsigned value, unsigned reading_max, unsigned duty_min) {
 void ambientlight_task(void *arg) {
   uint16_t value;
   uint16_t duty;
+  TickType_t lastmeasure = xTaskGetTickCount();
   
   do {
     // fill average with initial value once
@@ -67,7 +68,7 @@ void ambientlight_task(void *arg) {
     duty = ambientmap(value, 600, 200);
     ledc_set_duty(dimmer.mode, dimmer.channel, duty);
     ledc_update_duty(dimmer.mode, dimmer.channel);
-    vTaskDelay(100 / portTICK_RATE_MS);
+    vTaskDelayUntil(&lastmeasure, pdMS_TO_TICKS(120));
   }
 }
 
