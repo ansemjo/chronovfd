@@ -110,7 +110,7 @@ void vfd_raw(uint16_t raw[GRIDS]) {
 
 // ------------------------ digitmux timer ------------------------
 
-static IRAM_ATTR xSemaphoreHandle digitmux;
+static IRAM_ATTR TaskHandle_t digitmux;
 
 // periodically called function which does time-multiplexing of the
 // individual digits on the display from contents of vfd->buf
@@ -121,9 +121,12 @@ void IRAM_ATTR vfd_digitmux_task(void *arg) {
   // acquire bus exclusively to speed up transactions
   ESP_ERROR_CHECK(spi_device_acquire_bus(vfd.spidev, portMAX_DELAY));
 
+  // store own task handle for isr
+  digitmux = xTaskGetCurrentTaskHandle();
+
   for (;;) {
     // unblocked from isr periodically
-    xSemaphoreTake(digitmux, portMAX_DELAY);
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     data = (vfd.buf[pos] & SEGMENTMASK) | grids[pos];
     vfd_transmit(data);
     pos = (pos + 1) % GRIDS;
@@ -141,8 +144,11 @@ void IRAM_ATTR vfd_digitmux_isr(void *arg) {
 #endif
   VFD_MUX_TIMERG_DEV.hw_timer[VFD_MUX_TIMER_IDX].config.alarm_en = TIMER_ALARM_EN;
   // unblock and wake task
-  BaseType_t HigherPriorityTaskWoken = pdFALSE;
-  xSemaphoreGiveFromISR(digitmux, &HigherPriorityTaskWoken);
+  if (digitmux) {
+    BaseType_t HigherPriorityTaskWoken = pdTRUE;
+    vTaskNotifyGiveFromISR(digitmux, &HigherPriorityTaskWoken);
+    portYIELD_FROM_ISR();
+  }
 }
 
 
@@ -168,7 +174,6 @@ void vfd_init_mux(double period, TaskHandle_t *task) {
   ESP_LOGI(TAG, "digitmux timer prepared");
 
   // register isr and start timer
-  digitmux = xSemaphoreCreateBinary();
   ESP_ERROR_CHECK(timer_enable_intr(VFD_TIMER));
   ESP_ERROR_CHECK(timer_isr_register(VFD_TIMER, vfd_digitmux_isr, NULL, 0, NULL));
   ESP_ERROR_CHECK(timer_start(VFD_TIMER));
@@ -177,7 +182,9 @@ void vfd_init_mux(double period, TaskHandle_t *task) {
   bzero(vfd.buf, sizeof(vfd.buf));
 
   // create mux task and return its handle
-  xTaskCreate(vfd_digitmux_task, "digitmux", 2048, NULL, 20, task);
+  xTaskCreate(vfd_digitmux_task, "digitmux", 2048, NULL, configMAX_PRIORITIES - 1, task);
+  // default event loop is pinned on core 0, so if you see flickering maybe pin to core 1 ..
+  // xTaskCreatePinnedToCore(vfd_digitmux_task, "digitmux", 2048, NULL, configMAX_PRIORITIES - 1, task, 1);
   ESP_LOGI(TAG, "digitmux isr registered & task created");
 
 }
