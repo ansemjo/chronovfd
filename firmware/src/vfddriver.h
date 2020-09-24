@@ -40,7 +40,7 @@ typedef struct vfd_handle_t {
 } vfd_handle_t;
 
 void vfd_init_spi(vfd_pin_t *pin);
-void IRAM_ATTR vfd_transmit(uint16_t data);
+void vfd_transmit(uint16_t data);
 void vfd_text(const char text[GRIDS]);
 void vfd_raw(uint16_t raw[GRIDS]);
 

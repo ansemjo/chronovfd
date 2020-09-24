@@ -97,8 +97,13 @@ void vfd_init_spi(vfd_pin_t *pin) {
 // write text into the buffer from which digit multiplexing is performed.
 // text must point to a char array with $GRIDS elements
 void vfd_text(const char text[GRIDS]) {
-  for (int i = 0; (i < GRIDS) && (text[i] != 0); i++) {
-    vfd.buf[i] = segment_lookup(text[i]);
+  bool end = false;
+  for (int i = 0; i < GRIDS; i++) {
+    if (text[i] == 0) end = true;
+    if (end)
+      vfd.buf[i] = 0;
+    else
+      vfd.buf[i] = segment_lookup(text[i]);
   };
 }
 

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -43,6 +44,38 @@ void animation_spinner(TaskHandle_t *task) {
   xTaskCreate(animation_spinner_task, "anim:spinner", 1024, NULL, 2, task);
 }
 
+
+void animation_textrunner_task(void *arg) {
+
+  // delay between animation frames
+  TickType_t dl = 220 * portTICK_RATE_MS;
+  TickType_t last = xTaskGetTickCount();
+
+  // cast arg pointer to char string
+  const char *text = arg;
+  const int len = strlen(text);
+
+  uint16_t buf[GRIDS];
+  for (;;) {
+  for (int i = 0; i < len; i++){ //i = (i + 1) % len) {
+    buf[0] = segment_lookup(text[i]);
+    buf[1] = segment_lookup(text[(i + 1) % len]);
+    buf[2] = 0; // dots
+    buf[3] = segment_lookup(text[(i + 2) % len]);
+    buf[4] = segment_lookup(text[(i + 3) % len]);
+    vfd_raw(buf);
+    vTaskDelayUntil(&last, dl);
+  };
+  vfd_text("  :3 ");
+  vTaskDelayUntil(&last, 700 * portTICK_RATE_MS);
+
+  }
+
+}
+
+void animation_textrunner(TaskHandle_t *task, char *text) {
+  xTaskCreate(animation_textrunner_task, "anim:textrunner", 2048, text, 2, task);
+}
 
 
 void animation_fader_task(void *arg) {
