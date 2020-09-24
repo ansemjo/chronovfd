@@ -1,3 +1,6 @@
+// Copyright (c) 2020 Anton Semjonov
+// Licensed under the MIT License
+
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>

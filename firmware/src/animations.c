@@ -1,3 +1,6 @@
+// Copyright (c) 2020 Anton Semjonov
+// Licensed under the MIT License
+
 #include <stdint.h>
 #include <string.h>
 #include <freertos/FreeRTOS.h>

@@ -1,17 +1,27 @@
 # chronovfd
 
-This project is still a **work-in-progress**.
+~~ *a vacuum-flourescent display clock project* ~~
 
-The first prototype was built completely on protoboard and can be seen
-on [my Twitter](https://twitter.com/ansemjo/status/1235315817937596424).
+The first prototype of this clock was built completely on protoboard and can be
+seen on [my Twitter](https://twitter.com/ansemjo/status/1235315817937596424).
 
-Currently, I have the printed circuit boards assembled and the display lights
-up but I need some more work on the firmware until it actually performs any
-useful function.
+This has become my first somewhat complex hardware project and as of now I have
+assembled multiple printed circuit boards for the "display driver" and the
+"clock core". After fiddling with Espressif's development framework for a while
+the assembled hardware now actually works as a clock with internet time
+synchronization. :)
 
 ![](images/clockface.jpg)
 
+You'll find:
+
+* some initial research and ressources on the topic in `research/`
+* [hardware](#hardware) files in `hardware/`
+* the [firmware](#firmware) in a PlatformIO project in `firmware/`
+
 # Hardware
+
+As mentioned above the final assembly consists of two sandwiched boards:
 
 * [VFD Driver](#vfd-driver-board)
 * [Clock Core](#clock-core)
@@ -22,8 +32,9 @@ The bill-of-materials files contain Digi-Key part numbers, so you can easily
 import all parts into your cart. Only the IVL2-7/5 display itself needs to be
 sourced elsewhere but there are plenty on [eBay](https://www.ebay.com/sch/i.html?_nkw=ivl2-7%2F5).
 
-Both boards can be assembled together e.g. with 11 mm M2.5 standoffs between
-them. I have found some that are marketed as a "Raspberry Pi assembly kit".
+Both boards can be screwed together e.g. with 11 mm M2.5 standoffs between
+them. I have found some that are marketed as a "Raspberry Pi assembly kit" that
+fit well.
 
 ### Errata
 
@@ -41,7 +52,7 @@ a few pictures are mirrored in `research/universal-vfd-psu/`.
 
 It can be used standalone but there is no logic on the board, so you'll have
 to implement time multiplexing for the digits yourself. See the
-[Microchip HV5812 datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/20005629A.pdf)
+[Microchip HV5812 datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/20005629A.pdf)tag.gpgSign
 for more information. The gist is:
 
 * supply regulated 5V power on `GND` / `5V`
@@ -104,3 +115,41 @@ this board there are:
 ![](hardware/images/clockcore_pcb.png "clockcore PCB layout")
 ![](hardware/images/clockcore_render_front.png "clockcore PCB render, front")
 ![](hardware/images/clockcore_render_back.png "clockcore PCB render, back")
+
+
+# Firmware
+
+The firmware is kept in a PlatformIO project. So – if you have `platformio`
+already installed – all you need to do is connect the Clock Core via USB and run:
+
+    pio run -t upload
+
+Generally, this board is compatible with most ESP32 devkit configurations. I'm
+using a custom board definition mainly to get faster upload speeds, which the
+onboard FTDI FT231X can handle. For new projects you may use `pio init -b esp32dev`.
+
+After flashing the firmware, the board starts in **provisioning mode** and you'll
+see the word `Prov` blink on the display. Use the
+[ESP BLE Provisioning](https://play.google.com/store/apps/details?id=com.espressif.provble)
+app to connect and provision your WiFi credentials.
+
+**Note:** I haven't configured a *proof-of-posession* in the firmware, so you
+must disable *Encrypted Device Communication* in the app settings first. If you
+want to encrypt the provisioning step, look into `wireless_provision()` in
+`src/wireless.c`.
+
+Afterwards, the chip will connect to the internet and attempt to synchronize the
+time. This will be written to the RTC, which will keep the time as long as an
+RTC backup battery is present. If upon poweron the last synchronization is more
+than two hours ago, the clock will be synchronized once immediately. Otherwise
+it runs on a schedule every night at 05:00. See `src/realtimeclock.c` if you
+want to change that. You should probably also fix the timezone if you're not
+in the "Europe/Berlin" zone. That is set in `app_main()` with a call to `setenv()`.
+
+# LICENSE
+
+Unless otherwise noted in the file (`ds1307.*`, `i2cdev.*`) the firmware is licensed
+under an MIT license, which can be found in [LICENSE](LICENSE).
+
+The hardware project is licensed under a CERN Open Hardware Licence Version 2 -
+Permissive, which can be found in [hardware/LICENSE](hardware/LICENSE).
