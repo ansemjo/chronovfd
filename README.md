@@ -116,6 +116,10 @@ this board there are:
 ![](hardware/images/clockcore_render_front.png "clockcore PCB render, front")
 ![](hardware/images/clockcore_render_back.png "clockcore PCB render, back")
 
+![](images/clockcore00.jpg "A soldered clockcore circuit boards in small helping hands grips.")
+![](images/clockcore01.jpg "An assembled chronovfd, where both boards are screwed together with standoffs.")
+![](images/fullon.jpg "Testing the display by lighting up all segments to their full brightness.")
+
 
 # Firmware
 
