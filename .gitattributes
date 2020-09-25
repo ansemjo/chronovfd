@@ -1,0 +1,4 @@
+# exclude some files from language statistics
+# see https://github.com/github/linguist#using-gitattributes
+hardware/*_bom.csv   linguist-generated
+hardware/*_ibom.html linguist-generated
