@@ -1,7 +1,14 @@
 #ifndef __HVSHIFT_H_
 #define __HVSHIFT_H_
 
-SPIClass HVSPI(HSPI);
+// bitbang spi pins to hv5812p
+#if defined(__PROTOCLOCK__)
+  #define HV_CLOCK  7
+  #define HV_DATA   9
+  #define HV_STROBE 8
+#else
+  #error "no HV5812P pinout defined for this build"
+#endif
 
 class HV {
   public:

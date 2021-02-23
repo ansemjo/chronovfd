@@ -1,5 +1,4 @@
 #!/usr/bin/bash
-set -x
 # save the first 5 bytes
 input=$(head -c 5)
 
