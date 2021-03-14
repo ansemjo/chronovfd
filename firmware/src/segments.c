@@ -7,6 +7,9 @@
 // array of grids for looping
 const uint16_t grids[GRIDS] = { G1, G2, G3, G4, G5 };
 
+// double-lookup for brightness corrections
+const uint8_t gridpos[5] = { 0, 1, 2, 3, 4 };
+
 // character segment_lookup for segment mapping
 uint16_t segment_lookup(char ch) {
   switch (ch) {

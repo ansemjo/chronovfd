@@ -181,6 +181,10 @@ void app_main() {
   TaskHandle_t clock;
   clockface(&clock);
   
+  // all segments for debug purposes
+  // vfd_text("88:88");
+  // for (;;) { vTaskDelay(2 * SECONDS); }
+
   for (;;) {
     sntp_sync_schedule(NULL);
     do_sync(clock);

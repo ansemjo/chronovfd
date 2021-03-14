@@ -135,9 +135,9 @@ void IRAM_ATTR vfd_digitmux_task(void *arg) {
   for (;;) {
     // unblocked from isr periodically
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    data = (vfd.buf[pos] & SEGMENTMASK) | grids[pos];
+    data = (vfd.buf[gridpos[pos]] & SEGMENTMASK) | grids[gridpos[pos]];
     vfd_transmit(data);
-    pos = (pos + 1) % GRIDS;
+    pos = (pos + 1) % (sizeof(gridpos)/sizeof(gridpos[0]));
   }
 
 }

@@ -29,6 +29,7 @@ hv5812 pin:     10   9   8   7   6   5   4   3   2   1  11  12  13  14
 
 // array of grids for looping
 const uint16_t grids[GRIDS];
+const uint8_t gridpos[5];
 
 // anode segments:
 //       a
