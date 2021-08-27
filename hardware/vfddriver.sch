@@ -16,7 +16,7 @@ $EndDescr
 $Sheet
 S 5150 3050 1150 700 
 U 5F189B7D
-F0 "Universal VFD PSU by Rolo Kamp" 50
+F0 "Universal VFD PSU" 50
 F1 "universal_vfd_psu.sch" 50
 F2 "5V" I L 5150 3100 50 
 F3 "HV" O R 6300 3250 50 
@@ -54,20 +54,6 @@ Wire Wire Line
 	6350 3450 6300 3450
 Wire Wire Line
 	6300 3550 6350 3550
-$Comp
-L HV5812:HV5812WG U4
-U 1 1 5F19BBE0
-P 8800 3650
-F 0 "U4" H 8825 3715 50  0000 C CNN
-F 1 "HV5812WG" H 8825 3624 50  0000 C CNN
-F 2 "Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm" H 8800 3650 50  0001 C CNN
-F 3 "http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en570713" H 8800 3650 50  0001 C CNN
-F 4 "HV5812WG-GCT-ND" H 8800 3650 50  0001 C CNN "Digi-Key PN"
-F 5 "HV5812WG-G" H 8800 3650 50  0001 C CNN "MPN"
-F 6 "Microchip" H 8800 3650 50  0001 C CNN "Mfg"
-	1    8800 3650
-	1    0    0    -1  
-$EndComp
 $Comp
 L power:+24V #PWR0105
 U 1 1 5F1A10B2
@@ -536,4 +522,29 @@ Wire Bus Line
 	10050 3350 10050 5900
 Wire Bus Line
 	7850 3350 10050 3350
+$Comp
+L MCU_Microchip_ATtiny:ATtiny412-SS U5
+U 1 1 612A9264
+P 2300 2050
+F 0 "U5" H 1771 2096 50  0000 R CNN
+F 1 "ATtiny412-SS" H 1771 2005 50  0000 R CNN
+F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 2300 2050 50  0001 C CIN
+F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/40001911A.pdf" H 2300 2050 50  0001 C CNN
+	1    2300 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L HV5812:HV5812WG U4
+U 1 1 5F19BBE0
+P 8800 3650
+F 0 "U4" H 8825 3715 50  0000 C CNN
+F 1 "HV5812WG" H 8825 3624 50  0000 C CNN
+F 2 "Package_SO:SOIC-28W_7.5x17.9mm_P1.27mm" H 8800 3650 50  0001 C CNN
+F 3 "http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en570713" H 8800 3650 50  0001 C CNN
+F 4 "HV5812WG-GCT-ND" H 8800 3650 50  0001 C CNN "Digi-Key PN"
+F 5 "HV5812WG-G" H 8800 3650 50  0001 C CNN "MPN"
+F 6 "Microchip" H 8800 3650 50  0001 C CNN "Mfg"
+	1    8800 3650
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
