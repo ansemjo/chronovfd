@@ -68,7 +68,7 @@ void ambientlight_task(void *arg) {
 
   for (;;) {
     value = moving_average(&dimmer.avg, adc1_get_raw(dimmer.adc));
-    duty = ambientmap(value, 600, 200);
+    duty = ambientmap(value, AMBIENT_MAX_READING, AMBIENT_MIN_DUTY);
     ledc_set_duty(dimmer.mode, dimmer.channel, duty);
     ledc_update_duty(dimmer.mode, dimmer.channel);
     vTaskDelayUntil(&lastmeasure, pdMS_TO_TICKS(120));

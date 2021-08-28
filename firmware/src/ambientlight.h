@@ -11,6 +11,10 @@
 // how many points to hold in a moving average buffer
 #define AVERAGE_POINTS 20
 
+// adjust the dimming curve
+#define AMBIENT_MAX_READING 600
+#define AMBIENT_MIN_DUTY    200
+
 // struct for the state of a simple moving average calculation
 typedef struct moving_average_t {
   uint16_t buf[AVERAGE_POINTS];
