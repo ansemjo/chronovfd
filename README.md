@@ -45,7 +45,7 @@ Sometimes things go wrong .. these are known errors and how to fix them:
 ## VFD Driver Board
 
 The VFD driver board is basically a power supply and a simple shift register
-with a high-voltage capable output side. I used Rolo Kamp's *Universal VFD PSU*
+with a high-voltage capable output side. I used Rolo's *Universal VFD PSU*
 design from [this EEVblog forum post](https://www.eevblog.com/forum/projects/showing-my-vfd-psu/).
 The original [schematics](research/universal-vfd-psu/schematic_r2.1.pdf) and
 a few pictures are mirrored in `research/universal-vfd-psu/`.
