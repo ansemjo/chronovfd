@@ -52,7 +52,7 @@ a few pictures are mirrored in `research/universal-vfd-psu/`.
 
 It can be used standalone but there is no logic on the board, so you'll have
 to implement time multiplexing for the digits yourself. See the
-[Microchip HV5812 datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/20005629A.pdf)tag.gpgSign
+[Microchip HV5812 datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/20005629A.pdf)
 for more information. The gist is:
 
 * supply regulated 5V power on `GND` / `5V`
