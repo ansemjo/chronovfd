@@ -1,0 +1,33 @@
+name: compile firmware
+
+on:
+  push:
+    branches: [ main,  devel, v2 ]
+  schedule:
+    - cron: "32 15 3,17 * *"
+
+jobs:
+  
+  build:
+    runs-on: ubuntu-latest
+    container: python:3-slim
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Compile Firmware
+        run: |
+          cd firmware/
+          pip install -r requirements.txt
+          pio run
+
+      - name: Upload Firmware as Job Artifact
+        uses: actions/upload-artifact@v2
+        #if: github.ref == 'refs/heads/main'
+        with:
+          name: chronovfd-firmware
+          retention-days: 30
+          path: |
+            firmware/.pio/build/chronovfd/*.bin
+            firmware/.pio/build/chronovfd/flash_args
