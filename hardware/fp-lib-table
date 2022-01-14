@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name extra_libraries)(type KiCad)(uri ${KIPRJMOD}/extra_libraries)(options "")(descr ""))
-)

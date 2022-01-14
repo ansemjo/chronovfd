@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name "extra")(type "KiCad")(uri "/home/ansemjo/src/hardware/chronovfd/hardware/extra_libraries")(options "")(descr ""))
-)

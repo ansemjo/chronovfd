@@ -1,0 +1,87 @@
+(kicad_symbol_lib (version 20211014) (generator kicad_symbol_editor)
+  (symbol "ahoi" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+    (property "Reference" "A" (id 0) (at 0 1.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "ahoi" (id 1) (at -3.81 0 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "ansemjo:ahoi" (id 2) (at 0 1.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (id 3) (at 0 1.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "ki_description" "a small folding ship logo of ansemjo" (id 4) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (symbol "ahoi_0_0"
+      (text "ansemjo" (at 5.08 0 0)
+        (effects (font (size 1.27 1.27)))
+      )
+    )
+    (symbol "ahoi_0_1"
+      (polyline
+        (pts
+          (xy 0 -3.81)
+          (xy -2.54 -5.08)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy 0 -3.81)
+          (xy 2.54 -5.08)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy 0 0)
+          (xy -2.54 -2.54)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy 0 0)
+          (xy 0 -3.81)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy 0 0)
+          (xy 2.54 -2.54)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy -5.08 -1.27)
+          (xy -2.54 -5.08)
+          (xy 2.54 -5.08)
+          (xy 5.08 -1.27)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+      (polyline
+        (pts
+          (xy -1.27 -1.27)
+          (xy -5.08 -1.27)
+          (xy 0 -3.81)
+          (xy 5.08 -1.27)
+          (xy 1.27 -1.27)
+        )
+        (stroke (width 0) (type default) (color 0 0 0 0))
+        (fill (type none))
+      )
+    )
+  )
+)

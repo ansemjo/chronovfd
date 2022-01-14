@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name "ansemjo")(type "KiCad")(uri "${KIPRJMOD}/../library/ansemjo.pretty")(options "")(descr ""))
+  (lib (name "chronovfd")(type "KiCad")(uri "${KIPRJMOD}/../library/chronovfd.pretty")(options "")(descr ""))
+)

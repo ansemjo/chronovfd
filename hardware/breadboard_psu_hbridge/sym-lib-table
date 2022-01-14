@@ -1,5 +1,0 @@
-(sym_lib_table
-  (lib (name "breadboard_psu_hbridge-rescue")(type "Legacy")(uri "${KIPRJMOD}/breadboard_psu_hbridge-rescue.lib")(options "")(descr ""))
-  (lib (name "extra")(type "Legacy")(uri "/home/ansemjo/src/hardware/chronovfd/hardware/extra_libraries/IVL2-7_5.lib")(options "")(descr ""))
-  (lib (name "ahoi")(type "Legacy")(uri "/home/ansemjo/src/hardware/chronovfd/hardware/extra_libraries/ansemjo.lib")(options "")(descr ""))
-)
