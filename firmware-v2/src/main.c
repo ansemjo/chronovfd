@@ -36,9 +36,10 @@ void init_filament(uint8_t dac_data) {
   PORTB.DIRSET = filFWD | filREV; // setup direction pins as outputs
   PORTB.OUTSET = filFWD;          // set one direction pin high
   // setup dac for vref pin
-  DAC0.DATA  = dac_data;                     // write specified value
-  VREF.CTRLA = VREF_DAC0REFSEL_2V5_gc;       // select internal 2.5 V voltage reference
-  DAC0.CTRLA = DAC_ENABLE_bm | DAC_OUTEN_bm; // enable dac and output to PA6
+  DAC0.DATA  = dac_data;                           // write specified value
+  register8_t vref = (VREF.CTRLA & ~(0b00000111)); // read & mask the current ctrla setting
+  VREF.CTRLA = vref | VREF_DAC0REFSEL_2V5_gc;      // select internal 2.5 V voltage reference for dac
+  DAC0.CTRLA = DAC_ENABLE_bm | DAC_OUTEN_bm;       // enable dac and output to PA6
 }
 
 // send data to the shift register and latch to vfd outputs
@@ -91,21 +92,41 @@ void init_digit_multiplexing() {
   sei();
 }
 
-void main(void) {
+// setup the adc to measure the photodiode current, i.e. ambient brightness
+void init_photodiode_adc() {
+  PORTA.DIRCLR = PIN7_bm;                                 // PA7 input
+  PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;             // disable input buffer
+  register8_t vref = (VREF.CTRLA & ~(0b01110000));        // read & mask the current ctrla setting
+  VREF.CTRLA = vref | VREF_ADC0REFSEL_0V55_gc;            // select internal 0.55 V voltage reference for adc
+  ADC0.CTRLC = ADC_REFSEL_INTREF_gc | ADC_PRESC_DIV64_gc  // compate with internal reference, /64 prescaler
+    | ADC_SAMPCAP_bm;                                     // use the smaller sampling capacitance
+  ADC0.CTRLD = ADC_INITDLY_DLY32_gc | ADC_ASDV_ASVON_gc;  // some sample delay and randomization
+  ADC0.SAMPCTRL = 0x1F;                                   // longer sampling time for high-impedance input
+  ADC0.MUXPOS = ADC_MUXPOS_AIN7_gc;                       // sample on PA7 input
+  ADC0.CTRLA |= ADC_ENABLE_bm;                            // enable
+  ADC0.COMMAND = ADC_STCONV_bm;                           // start first conversion right away
+}
 
-  init_cpufrequency();
-  init_filament(160);
-  init_hv5812();
-  init_digit_multiplexing();
+// simple moving average over last few measurements
+uint16_t samples[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned idx = 0;
+unsigned sum = 0;
+#define SAMPLES (sizeof(samples)/sizeof(samples[0]))
 
-  // show EHLO at beginning
-  digits[0] = G1 | segment_lookup('E');
-  digits[1] = G2 | segment_lookup('H');
-  digits[2] = G4 | segment_lookup('L');
-  digits[3] = G5 | segment_lookup('O');
-  _delay_ms(1500);
+// sample the photodiode adc and return averaged value
+uint16_t measure_photodiode() {
+  ADC0.COMMAND = ADC_STCONV_bm; // start conversion
+  while (ADC0.COMMAND & ADC_STCONV_bm); // wait
+  uint16_t sample = ADC0.RES;
+  sum -= samples[idx];
+  samples[idx] = sample;
+  sum += samples[idx];
+  idx = (idx+1) % SAMPLES;
+  return sum / SAMPLES;
+}
 
-  // infinite loop with random noise
+// infinite loop with random noise
+void noise() {
   const int delay = 30;
   while (1) {
     digits[0] = G1 | (SEGMENTMASK & rand());
@@ -114,5 +135,38 @@ void main(void) {
     digits[3] = G5 | (SEGMENTMASK & rand());
     _delay_ms(delay);
   }
+}
+
+// continiously sample the ambient brightness and display the value
+void adcdisplay() {
+  init_photodiode_adc();
+  const uint16_t masks[] = { G1, G2, G4, G5 };
+  uint16_t measure;
+  while (1) {
+    measure = measure_photodiode();
+    digits[0] = masks[0] | segment_lookup((measure/1000) % 10);
+    digits[1] = masks[1] | segment_lookup((measure/100 ) % 10);
+    digits[2] = masks[2] | segment_lookup((measure/10  ) % 10);
+    digits[3] = masks[3] | segment_lookup((measure/1   ) % 10);
+    _delay_ms(100);
+  }
+}
+
+void main(void) {
+
+  init_cpufrequency();
+  init_filament(170);
+  init_hv5812();
+  init_digit_multiplexing();
+
+  // show EHLO at beginning
+  digits[0] = G1 | segment_lookup('E');
+  digits[1] = G2 | segment_lookup('H');
+  digits[2] = G4 | segment_lookup('L');
+  digits[3] = G5 | segment_lookup('O');
+  _delay_ms(600);
+
+  // noise();
+  adcdisplay();
 
 }

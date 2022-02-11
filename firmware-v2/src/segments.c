@@ -14,15 +14,25 @@ const uint8_t gridpos[5] = { 0, 3, 1, 4, 2 };
 uint16_t segment_lookup(char ch) {
   switch (ch) {
     // numbers
+    case 0:
     case '0': return Aa|Ab|Ac|Ad|Ae|Af;
+    case 1:
     case '1': return Ab|Ac;
+    case 2:
     case '2': return Aa|Ab|Ag|Ae|Ad;
+    case 3:
     case '3': return Aa|Ab|Ac|Ad|Ag;
+    case 4:
     case '4': return Af|Ag|Ab|Ac;
+    case 5:
     case '5': return Aa|Af|Ag|Ac|Ad;
+    case 6:
     case '6': return Aa|Af|Ae|Ad|Ac|Ag;
+    case 7:
     case '7': return Aa|Ab|Ac;
+    case 8:
     case '8': return Aa|Ab|Ac|Ad|Ae|Af|Ag;
+    case 9:
     case '9': return Aa|Ab|Ac|Ad|Ag|Af;
     // alphabet
     case 'A': return Aa|Ab|Ac|Ae|Af|Ag;
