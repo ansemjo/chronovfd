@@ -1,13 +1,10 @@
-#ifndef __AVR_ATtiny414__
-#define __AVR_ATtiny414__
-#endif
-
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <assert.h>
 
 #include "segments.h"
+#include "i2c_peripheral.h"
 
 // filament pins
 #define filFWD  PIN2_bm // PB2
@@ -81,7 +78,7 @@ ISR(RTC_PIT_vect) {
   RTC.PITINTFLAGS = RTC_PI_bm;    // clear interrupt flag
   display(digits[digit]);         // display next digit
   digit = (digit+1) % DIGITS;     // increment digit position
-  PORTB.OUTTGL = filFWD | filREV; // toggle filament drive direction
+  PORTB.OUTTGL = filFWD | filREV; // toggle filament drive direction // TODO
 }
 
 // setup the periodic interrupt timer for digit time-multiplexing
@@ -152,10 +149,41 @@ void adcdisplay() {
   }
 }
 
+volatile uint8_t i2c_data[4] = { 0, 0, 0, 0 };
+
+// setup as i2c peripheral
+init_i2c_peripheral() {
+
+  i2c_peripheral_init(0x68);
+  sei();
+
+  while (1) {
+    digits[0] = G1 | segment_lookup(i2c_data[0]);
+    digits[1] = G2 | segment_lookup(i2c_data[1]);
+    digits[2] = G4 | segment_lookup(i2c_data[2]);
+    digits[3] = G5 | segment_lookup(i2c_data[3]);
+    _delay_ms(100);
+  }
+
+}
+
+/* i2c wishlist:
+ * (https://github.com/sparkfun/Serial7SegmentDisplay/wiki/Special-Commands#decimal)
+ *   clear display
+ *   colon on/off (cursor control)
+ *   begin every write left and then loop aroung with every fourth byte
+ *   brightness control
+ *   set specific digit
+ *   raw data entry escape
+ *   address config
+ *   factory reset ?!
+ *   store configuration in eeprom
+ */
+
 void main(void) {
 
   init_cpufrequency();
-  init_filament(170);
+  init_filament(200);
   init_hv5812();
   init_digit_multiplexing();
 
@@ -167,6 +195,7 @@ void main(void) {
   _delay_ms(600);
 
   // noise();
-  adcdisplay();
+  //adcdisplay();
+  init_i2c_peripheral();
 
 }

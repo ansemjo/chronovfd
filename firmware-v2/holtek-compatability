@@ -1,0 +1,51 @@
+Be compatible to an "Adafruit 4-Digit 7-Segment Display w/I2C Backpack",
+product number 1002, which uses a HOLTEK HT16K33 to drive the segments?
+
+Product:    https://www.adafruit.com/product/1002
+Drawing:    https://learn.adafruit.com/assets/108790
+Datasheet:  https://cdn-shop.adafruit.com/datasheets/ht16K33v110.pdf
+Library:    https://github.com/RobTillaart/HT16K33/blob/master/HT16K33.cpp
+
+I2C Address / Command Mapping:
+
+  ~ \x00 - \x0f    Display Data Register (raw)
+  + \x10 - \x17    Display Data Register (char)
+  o \x20           System Setup (OSC on/off)
+  o \x40 - \x45    Keyscan Data (ro)
+  o \x60           INT flag register
+  ~ \x80           Display Setup Register (on/off, blinking)
+  o \xa0           ROW/INT Set Register
+  ~ \xd9           Test Mode (reserved)
+  ~ \xef           Dimming Setting
+  
+  ? Automatic Dimming on/off
+  ? Dimming Curve Equation
+  ? Segment Correction Settings (how?!)
+  ? Filament Driver Direction Frequency (needed?)
+  ? Multiplexing Frequency / PIT prescaler
+
+  Legend:
+   o not needed
+   ~ used
+   + new
+
+Raw Display Data Register format:
+
+        0–ROW––7 8–ROW–15
+  COM0  ········ ········
+  COM1  ········ ········
+  COM2  ········ ········
+  COM3  ········ ········
+  COM4  ········ ········
+  COM5  ········ ········
+  COM6  ········ ········
+  COM7  ········ ········
+
+  The following \x10 addresses shall perform char lookup
+  on writing, so that you can write simple strings. Naturally
+  this will only require one byte per digit position.
+
+Open Questions:
+
+  * Is it worth it to truncate the display data register to loop around
+    after \x09 because we only have five digits to show?
