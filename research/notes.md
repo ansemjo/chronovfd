@@ -97,3 +97,9 @@ Some fundamental information on VFD operation:
   * [One particular reply by Ian which details some filament specifics](https://www.eevblog.com/forum/projects/any-interest-in-vfd-tube-power-supply-boards/msg1607869/#msg1607869)
 
   * [Rolo / r.kamp's pictures folder on some university server?](http://members.casema.nl/r.kamp/pictures/electronics/vfd_psu)
+
+* [Noritake VFD Driver by Nick Poole](https://github.com/NPoole/VFDLib/tree/main/Driver_Boards), [schematic](https://mobile.twitter.com/NorthAllenPoole/status/1460093862437916677/photo/1) ([archive](https://archive.ph/Z7QLS))
+  * 60V boost: LM3488MM/NOPB
+  * grid scanning watchdog: CD74HC123ME4
+  * VCC1 protection switch with a MOSFET
+  * 100kHZ filament driver: LTC6906CS6#TRPBF (R-set oscillator) & MAX628CSA+ (N/P-ch MOSFET)
