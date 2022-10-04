@@ -97,7 +97,7 @@ this board there are:
 * a Maxim `DS1338Z-33+` RTC with a crystal, which is connected to the ESP32 over I²C and has a coin cell battery backup
 * a Maxim `DS18B20U` temperature sensor with a OneWire interface
 * a footprint for a photodiode to sense ambient light levels
-* a Texas Instruments `SN74HCT245PWR‎` level shifter to provide the correct logic levels to the VFD driver board
+* a Texas Instruments `SN74HCT245PWR` level shifter to provide the correct logic levels to the VFD driver board
 * a PWR and a USR LED for that blinkenlights, the PWR LED can be disabled by cutting a solder jumper
 * a 10-pin 1.27mm JTAG header for the ESP32
 
