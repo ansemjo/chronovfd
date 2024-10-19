@@ -5,8 +5,10 @@ This LCD driver was intentionally designed to be compatible with the "[Low-Power
 It just needs a few small modifications:
 
 * Only `PE0` is connected to the display's `COM`. `PE1` is used for an LED and if you use the firmware as-is, you'll have a constantly flashing LED ...
-* I used an AVR32DB48 and apparently (?) it lacks some of the ADC stuff necessary to read its own voltage? So I just removed `ADCSetup()`, `DisplayVoltage()` and the references to it.
+* I used an **AVR32DB48** and apparently (?) it lacks some of the ADC stuff necessary to read its own voltage? So I just removed `ADCSetup()`, `DisplayVoltage()` and the references to it.
 * Additionally, I removed the temperature display and reduced the blinking frequency of the colon by half.
+
+There is also an inverted variant of the firmware, for when you want to operate the clock rotated by 180°, since the LCD segments are rotationally symmetric but the viewing angle is better from one side.
 
 ### Compile
 
