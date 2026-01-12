@@ -1,0 +1,7 @@
+# define (multiple) known wireless networks
+# format: WIFI_PSK_<SSID> = "PSK"
+WIFI_PSK_example = "verysecurepassword"
+
+# NTP server to use
+NTP_SERVER = "134.100.32.19" # ntp.uni-hamburg.de
+
