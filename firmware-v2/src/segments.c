@@ -4,15 +4,26 @@
 #include <stdint.h>
 #include "segments.h"
 
-// array of grids for looping
-const uint16_t grids[GRIDS] = { G1, G2, G3, G4, G5 };
+// array of grids for double-lookup
+const uint16_t grids[] = { G1, G2, Gc, G3, G4 };
 
-// double-lookup for brightness corrections
-const uint8_t gridpos[5] = { 0, 3, 1, 4, 2 };
+// map a byte bitmask to segments in a uint16_t
+// i.e. 0b0110011 --> Ab|Ac|Af|Ag --> 4
+uint16_t segment_bitmask(uint8_t input) {
+  static const uint16_t masks[8] = { Ag, Af, Ae, Ad, Ac|Adb, Ab|Adt, Aa, 0 };
+  uint16_t out = 0;
+  // for each bit, add mask if it is set
+  for (uint8_t i = 0; i < 8; i++) {
+    if (input & (1 << i)) out |= masks[i];
+  }
+  return out;
+}
+
 
 // character segment_lookup for segment mapping
 uint16_t segment_lookup(char ch) {
   switch (ch) {
+
     // numbers
     case 0:
     case '0': return Aa|Ab|Ac|Ad|Ae|Af;
@@ -34,6 +45,7 @@ uint16_t segment_lookup(char ch) {
     case '8': return Aa|Ab|Ac|Ad|Ae|Af|Ag;
     case 9:
     case '9': return Aa|Ab|Ac|Ad|Ag|Af;
+
     // alphabet
     case 'A': return Aa|Ab|Ac|Ae|Af|Ag;
     case 'a': return segment_lookup('A');
@@ -79,14 +91,15 @@ uint16_t segment_lookup(char ch) {
     case 'u': return Ac|Ad|Ae;
     case 'V': return segment_lookup('U');
     case 'v': return segment_lookup('u');
-    case 'W': return Ac|Ad|Ae|Af; // like M + m
-    case 'w': return Ab|Ac|Ad|Ae; //
+    case 'W': return Ac|Ad|Ae|Af; // like M + m =  |    |
+    case 'w': return Ab|Ac|Ad|Ae; //               |_||_|
     case 'X': return segment_lookup('H');
     case 'x': return segment_lookup('H');
     case 'Y': return segment_lookup('y');
     case 'y': return Ab|Ac|Ad|Af|Ag;
     case 'Z': return segment_lookup('2');
     case 'z': return segment_lookup('2');
+
     // symbols
     case ':': return Adt|Adb;
     case '.': return Adb;
@@ -98,7 +111,9 @@ uint16_t segment_lookup(char ch) {
     case '=': return Ad|Ag;
     case '~': return Aa|Ad|Ag;
     case ';': return Ac|Ae;
-    // empty be default
+
+    // empty by default
     default: return 0;
+
   }
 }

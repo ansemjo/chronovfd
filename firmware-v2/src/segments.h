@@ -14,22 +14,23 @@ vacuum display.
              |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
 function:   Fil G1  Adt Ag  Ae  G2  Ac  Gd  Adb Ad  G3  Ab  Af  Aa  G4  Fil
 hv5812 pin:     10   9   8   7   6   5   4   3   2   1  11  12  13  14
+
+                 // TODO: this looks wrong with #defines below
 */
 
 // anode digit grids:
 //   8   8   :   8   8
-//  G1  G2  G3  G4  G5
+//  G1  G2  Gc  G3  G4
 #define G1 (1 << 13)
 #define G2 (1 <<  0)
-#define G3 (1 <<  2)
-#define G4 (1 <<  5)
-#define G5 (1 <<  9)
-#define GRIDS 5
-#define GRIDMASK (G1|G2|G3|G4|G5)
+#define Gc (1 <<  2)
+#define G3 (1 <<  5)
+#define G4 (1 <<  9)
+#define GRIDMASK (G1|G2|Gc|G3|G4)
 
-// array of grids for looping
-const uint16_t grids[GRIDS];
-const uint8_t gridpos[5];
+// array of grids for double-lookup
+#define GRIDS 5
+extern const uint16_t grids[GRIDS];
 
 // anode segments:
 //       a
