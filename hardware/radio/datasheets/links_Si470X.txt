@@ -1,0 +1,4 @@
+https://radio-bastler.de/forum/showthread.php?tid=14455
+https://www.instructables.com/Si4703-FM-Radio-Arduino-Uno-Schield/
+https://learn.sparkfun.com/tutorials/si4703-fm-radio-receiver-hookup-guide
+https://www.mathertel.de/Arduino/RadioLibrary3.aspx
