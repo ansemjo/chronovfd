@@ -1,0 +1,15 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP HV5812P
+D 20-Channel Serial-Input Vacuum Fluorescent Display Driver for Anode or Grid
+K VFD Display Driver
+F http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en570713
+$ENDCMP
+#
+$CMP HV5812WG
+D 20-Channel Serial-Input Vacuum Fluorescent Display Driver for Anode or Grid
+K VFD Display Driver
+F http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en570713
+$ENDCMP
+#
+#End Doc Library

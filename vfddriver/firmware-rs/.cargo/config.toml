@@ -1,0 +1,6 @@
+[build]
+target = "avr-none"
+rustflags = ["-C", "target-cpu=attiny414"]
+
+[unstable]
+build-std = ["core"]

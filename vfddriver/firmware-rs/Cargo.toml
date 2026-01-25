@@ -1,0 +1,30 @@
+[package]
+name = "firmware-rs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+avr-device = { version = "0.8.1", features = ["attiny414", "rt"] }
+byteorder = { version = "1.5.0", default-features = false }
+heapless = "0.9.2"
+panic-halt = "1.0.0"
+
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"
+
+[[bin]]
+name = "firmware"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
