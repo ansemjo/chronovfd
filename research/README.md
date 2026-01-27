@@ -30,7 +30,7 @@ In any case, I think I would like to assume a regulated 5 V rail from which I de
 
 ### High-voltage Driver
 
-Simply use a regulated boost converter, duh'. This part seems to be really simple.
+Simply use a regulated boost converter, duh'. This part seems to be really simple. Though, depending on your specific filament circuit you might need to boost a little higher than nominally needed to account for the center-tap offset.
 
 ### Filament Driver
 
@@ -46,15 +46,21 @@ There's a number of different approaches here:
 
   * Use a regulated converter to provide the correct voltage as DC. It may have a disable pin to cut power but otherwise needs no interfacing.
 
-  * Supply 3.3 V from a microcontroller and pulse-modulate the output to reach the correct RMS.
+  * Supply 3.3 V from a microcontroller and pulse-modulate the output to reach the correct average.
 
 * Supply an **AC** voltage.
 
-  * Use a H-bridge (motor controller) that is timed externally. This can be a self-oscillating circuit, a 555 timer or a microcontroller. Hard to get the right timing.
+  * Use an H-bridge (motor controller) that is timed externally. This can be a self-oscillating circuit, a 555 timer or a microcontroller. Hard to get the right timing.
+
+      + _**Note from the future:** this is what I picked for the v2 redesign, where I decided to have a microcontroller on the display driver anyway. This way, I can adjust the direction change frequency and can supply the correct filament voltage from an ADC pin directly. Though, be aware that bad frequencies can lead to high-pitched ringing!_
 
   * Use two GPIO pins and alternate their HIGH/LOW stated on a microcontroller. Maximum draw might be an issue and we're still dealing with too much voltage.
 
   * Clone the circuitry of a dedicated filament driver with a self-oscillating audio amplifier, capacitor coupling and center-tap biasing with a zener diode. This is Rolo's design but it's pretty large.
+
+      + _**Another note from the future:** still, this is overall a very nice and clean design. You can dim the display pretty well by PWM-toggling the shutdown pin of the amplifier._
+
+  * **Future note:** The best combination would probably reuse a lot of the circuit (large capacitors and center-tap) from the self-oscillating v1 design but instead drive the direction changes with an H-bridge from v2.
 
 ### Interfaces
 

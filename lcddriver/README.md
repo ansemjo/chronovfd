@@ -3,6 +3,7 @@
 This isn't entirely my own design and is instead heavily based on David Johnson-Davies' ["Low-Power LCD Clock" design on Technoblogy](http://www.technoblogy.com/show?19K8) (archived: [page](https://archive.ph/uYsL3), [firmware](https://archive.ph/4itl0)). This was created shortly after the `vfddriver` v2 and was meant to use the same physical format and I2C protocol to be a drop-in replacement. In practice, I haven't really bothered to write a separate firmware and used it as a standalone clock with David's firmware instead.
 
 ![](render.png)
+![](PXL_20260127_210012597.jpg)
 
 It just needed a few small modifications from the original:
 
