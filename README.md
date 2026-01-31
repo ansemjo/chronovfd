@@ -7,8 +7,8 @@ A vacuum-flourescent display (VFD) clock project based on Soviet NOS [IVL2-7/5 /
 
 #### quickmenu:
 
-* [vfddriver](#vfddriver-v2) — updated display board, which can be used over I2C
-* [sandwich](#sandwich) — the original clock design with two boards
+* [vfddriver](vfddriver/) — updated display board, which can be used over I2C
+* [sandwich](sandwich/) — the original clock design with two boards
 * [other](#other-directories) — links to initial research prototypes and various experiments
 
 ### vfddriver
