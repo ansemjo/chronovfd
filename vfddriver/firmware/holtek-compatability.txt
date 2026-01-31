@@ -1,4 +1,5 @@
-Be compatible to an "Adafruit 4-Digit 7-Segment Display w/I2C Backpack",
+This file was written when contemplating if the firmware should be made
+compatible to an "Adafruit 4-Digit 7-Segment Display w/I2C Backpack",
 product number 1002, which uses a HOLTEK HT16K33 to drive the segments?
 
 Product:    https://www.adafruit.com/product/1002

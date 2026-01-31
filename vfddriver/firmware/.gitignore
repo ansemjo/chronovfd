@@ -1,4 +1,1 @@
-build/
-venv/
-.pio
-.vscode
+/target

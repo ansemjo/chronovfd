@@ -54,7 +54,49 @@ The segments in a digit are counted clockwise, starting from the top; the center
 
 ## firmware
 
-**TODO:** replace with `firmware-rs`, describe how to build and flash with UPDI
+The firmware was ported to Rust using the [`avr-none`](https://doc.rust-lang.org/stable/rustc/platform-support/avr-none.html) target and [`rahix/avr-device`](https://github.com/Rahix/avr-device) crate. Even though this is effectively still register-fiddling, since there currently is no proper HAL for ATtiny 0/1-series chips, the development experience was much more pleasant already.
+*(Note: the previous C firmware can be found in [commit `2b87ed3`](https://github.com/ansemjo/chronovfd/tree/2b87ed39b4a0b78c596b9a6d270321534c5b3cb9/vfddriver/firmware), though it has fallen behind feature-wise.)*
+
+### building
+
+I am not exactly sure what the absolute minimum required version is for a successful build. But I can say that the firmware easily builds in a current `rust:trixie` container.
+
+You should be able to just run `cargo build` after installing `gcc-avr` and `avr-libc`. The resulting `firmware.elf` then just needs to be converted to a HEX file using `avr-objcopy` before flashing.
+
+```
+$ docker run --rm -it -v firmware/:/firmware -w /firmware rust:latest
+
+# apt update && apt install -y gcc-avr avr-libc
+// binutils-avr amd64 2.43.50.20250108-1
+// gcc-avr amd64 1:14.2.0-2
+// avr-libc all 1:2.2.1-1
+
+# cargo build
+info: syncing channel updates for 'nightly-x86_64-unknown-linux-gnu'
+info: latest update on 2026-01-31, rust version 1.95.0-nightly (a293cc4af 2026-01-30)
+// ...
+    Finished `dev` profile [optimized + debuginfo] target(s) in 26.26s
+
+# avr-objcopy -O ihex -R .eeprom target/avr-none/debug/firmware.{elf,hex}
+# avr-size target/avr-none/debug/firmware.hex
+   text	   data	    bss	    dec	    hex	filename
+      0	   3658	      0	   3658	    e4a	firmware.hex
+```
+
+A compiled firmware is also committed in this repository, though I won't guarantee that I will always keep it updated with every commit. (:
+
+### flashing
+
+The ATtiny 0/1/2-series chips can be flashed using an UPDI programmer, which can be as simple as connecting a Schottky diode or resistor between the RX and TX pins of a USB-TTL adapter: [SpenceKonde/AVR-Guidance/UPDI/jtag2updi.md](https://github.com/SpenceKonde/AVR-Guidance/blob/master/UPDI/jtag2updi.md#connections). I have my own programmer based on a CH340N chip, very similar to [this pogo pin adapter](https://oshwlab.com/gabe_9484/usb-c-to-updi).
+
+Using serial adapters like this, you can then use [`pymcuprog`](https://pypi.org/project/pymcuprog/) to flash the firmware:
+
+```
+pymcuprog -d attiny414 -t uart -u /dev/ttyUSB0 write \
+ --erase -f firmware/target/avr-none/debug/firmware.hex
+```
+
+![](photos/PXL_20260131_032011285.jpg "Flashing the firmware to the display board using a serial UPDI programmer. A red LED is lit signalling a write in progress.")
 
 ### configuration
 
@@ -62,7 +104,7 @@ For persistent configuration, you can write values to the ATtiny414's USERROW â€
 
 ```
 pymcuprog -d attiny414 -t uart -u /dev/ttyUSB0 write \
-  -m user_row -o 0x01 -l 160 # default brightness
+ -m user_row -o 0x01 -l 160 # default brightness
 ```
 
 | Offset | Type | Default | Description |
@@ -77,7 +119,7 @@ The grid multiplex loop can be used to adjust the relative brightness of grids, 
 
 ```
 pymcuprog -d attiny414 -t uart -u /dev/ttyUSB0 write \
-  -m user_row -o 0x10 -l 0 0 1 2 3 4 4 0xff
+ -m user_row -o 0x10 -l 0 0 1 2 3 4 4 0xff
 ```
 
 ## usage
