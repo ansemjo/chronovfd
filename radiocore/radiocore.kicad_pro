@@ -38,8 +38,8 @@
         "other_text_upright": false,
         "pads": {
           "drill": 0.0,
-          "height": 0.6,
-          "width": 1.325
+          "height": 2.5,
+          "width": 3.0
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -48,10 +48,16 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.3
+          "min_clearance": 0.2
         }
       },
-      "diff_pair_dimensions": [],
+      "diff_pair_dimensions": [
+        {
+          "gap": 0.0,
+          "via_gap": 0.0,
+          "width": 0.0
+        }
+      ],
       "drc_exclusions": [],
       "meta": {
         "filename": "board_design_settings.json",
@@ -194,6 +200,7 @@
         0.0,
         0.1,
         0.2,
+        0.3,
         0.5
       ],
       "tuning_pattern_settings": {
@@ -480,7 +487,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "radio.kicad_pro",
+    "filename": "radiocore.kicad_pro",
     "version": 3
   },
   "net_settings": {

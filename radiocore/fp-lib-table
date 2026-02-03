@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "chronovfd")(type "KiCad")(uri "${KIPRJMOD}/../kicad_library/chronovfd.pretty")(options "")(descr ""))
+  (lib (name "ansemjo")(type "KiCad")(uri "${KIPRJMOD}/../kicad_library/ansemjo.pretty")(options "")(descr ""))
+)
