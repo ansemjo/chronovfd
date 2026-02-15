@@ -21,9 +21,9 @@ pub struct UserSettings {
 pub fn read_settings(usr: &avr_device::attiny414::USERROW) -> UserSettings {
     let readbyte = |n: usize| usr.userrow(n).read().bits();
 
-    // read peripheral address or use 0x68 by default
+    // read peripheral address or use 0x42 by default
     let mut addr = readbyte(0x00);
-    if addr == 0xff { addr = 0x68 };
+    if addr == 0xff { addr = 0x42 };
 
     // initial value for the filament driver Vref
     let mut filament = readbyte(0x01);

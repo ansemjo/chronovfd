@@ -109,7 +109,7 @@ pymcuprog -d attiny414 -t uart -u /dev/ttyUSB0 write \
 
 | Offset | Type | Default | Description |
 | ------ | ---- | --------| ----------- |
-| `0x00` | `u8` | `0x68` | I2C peripheral address |
+| `0x00` | `u8` | `0x42` | I2C peripheral address |
 | `0x01` | `u8` | 120 | filament brightness (DAC value) |
 | `0x02` | `u16` | 10.000 | digit multiplexing frequency in Hz |
 | `0x0b` | `[u8; 5]` | `0xff..ff` | initial display contents |
@@ -124,11 +124,11 @@ pymcuprog -d attiny414 -t uart -u /dev/ttyUSB0 write \
 
 ## usage
 
-The default I2C address of the display is `0x68`. Since the primary usage will be writing new display contents, the firmware will try to parse *most* bytes as bare numbers, ASCII characters or raw segment bitmaps. There are only two special command sequences which change the behaviour with the first transmitted byte; otherwise the display always expects exactly five bytes for the new display contents, from left to right, with the colon in the middle.
+The default I2C address of the display is `0x42`. Since the primary usage will be writing new display contents, the firmware will try to parse *most* bytes as bare numbers, ASCII characters or raw segment bitmaps. There are only two special command sequences which change the behaviour with the first transmitted byte; otherwise the display always expects exactly five bytes for the new display contents, from left to right, with the colon in the middle.
 
 ```
 # HE LO
-i2c.writeto(0x68, "HE LO")
+i2c.writeto(0x42, "HE LO")
 ```
 
 #### commands
@@ -167,18 +167,18 @@ A few more examples that you might use from CircuitPython:
 
 ```
 # 23:59
-i2c.writeto(0x68, "23:59")
-i2c.writeto(0x68, bytes([2, 3, 0xff, 5, 9]))
+i2c.writeto(0x42, "23:59")
+i2c.writeto(0x42, bytes([2, 3, 0xff, 5, 9]))
 # 20°C
-i2c.writeto(0x68, "20 *C")
+i2c.writeto(0x42, "20 *C")
 ```
 
 ```
 # An.on                    A     n        .        o     n
-i2c.writeto(0x68, bytes([0x41, 0x6e, 0b10010000, 0x6f, 0x6e]))
+i2c.writeto(0x42, bytes([0x41, 0x6e, 0b10010000, 0x6f, 0x6e]))
 ```
 
 ```
 # lower brigthness
-i2c.writeto(0x68, bytes([0x10, 65]))
+i2c.writeto(0x42, bytes([0x10, 65]))
 ```

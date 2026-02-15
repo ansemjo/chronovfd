@@ -4,7 +4,7 @@ import board
 from time import sleep
 
 # display address
-address = 0x68
+address = 0x42
 
 # init i2c peripheral
 sleep(1)

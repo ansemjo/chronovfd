@@ -10,7 +10,7 @@ time.sleep(0.1)
 i2c = board.STEMMA_I2C()
 i2c.try_lock()
 
-addr = 0x68
+addr = 0x42
 
 # shorthand to write data
 def display(data):

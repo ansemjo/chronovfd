@@ -10,7 +10,7 @@ i2c.try_lock()
 
 # shorthand to write data
 def display(data):
-  i2c.writeto(0x68, data)
+  i2c.writeto(0x42, data)
 
 # running text
 def runner(text, delay):
