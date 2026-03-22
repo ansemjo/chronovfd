@@ -1,0 +1,51 @@
+[package]
+edition = "2024"
+name = "radiocore"
+rust-version = "1.88"
+version = "0.1.0"
+
+[[bin]]
+name = "radiocore"
+path = "./src/main.rs"
+
+[dependencies]
+esp-hal = { version = "~1.0", features = ["esp32c3", "log-04", "unstable"] }
+
+esp-rtos = { version = "0.2.0", features = ["embassy", "esp32c3", "log-04"] }
+
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32c3", "log-04"] }
+log = "0.4.27"
+
+embassy-executor = { version = "0.9.1", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+esp-backtrace = { version = "0.18.1", features = [
+  "esp32c3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.16.1", features = ["esp32c3", "log-04"] }
+
+critical-section = "1.2.0"
+static_cell = "2.1.1"
+embassy-sync = { version = "0.7.2", features = ["log"] }
+embassy-embedded-hal = "0.5.0"
+embedded-hal-async = "1.0.0"
+jiff = { version = "0.2.20", default-features = false }
+heapless = "0.9.2"
+embassy-futures = { version = "0.1.2", features = ["log"] }
+futures = { version = "0.3.32", default-features = false }
+
+
+[profile.dev]
+# Rust debug is too slow.
+# For debug builds always builds with some optimization
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1        # LLVM can perform better optimizations using a single thread
+debug = 2
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false
