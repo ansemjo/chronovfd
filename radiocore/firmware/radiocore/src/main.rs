@@ -14,19 +14,19 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::watch::Watch;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
+use esp_hal::Async;
 use esp_hal::clock::CpuClock;
-use esp_hal::gpio::{AnyPin, Input, InputConfig};
+use esp_hal::gpio::AnyPin;
 use esp_hal::i2c;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::{Async, gpio};
 use heapless::format;
-use log::{debug, error, info, warn};
+use log::{debug, info};
 
 use radiocore::display::VacuumDisplay;
 use radiocore::radio::{Si4706Radio, rds_to_julian};
-use radiocore::rtc::Ds1338;
+use radiocore::rtc::{Ds1338, RtcControls, SqweRate};
 use static_cell::StaticCell;
 
 // Default app-descriptor required by the esp-idf bootloader
@@ -61,11 +61,7 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
-    // warn!(" datetime --? 2026-03-22 21:06 (1.0)");
-    // let rds: [u8; _] = [129, 33, 1, 5, 211, 232, 69, 65, 221, 131, 65, 130, 0, 0];
-    // info!("parsed: {:?}", rds_to_julian(&rds));
-
-    // initialize an I2C controller
+    // initialize i2c controller
     let i2c = i2c::master::I2c::new(
         peripherals.I2C0,
         i2c::master::Config::default().with_frequency(Rate::from_khz(400)),
@@ -75,59 +71,28 @@ async fn main(spawner: Spawner) {
     .with_scl(peripherals.GPIO6);
     let i2c = i2c.into_async();
 
-    // example from: https://github.com/embassy-rs/embassy/blob/main/examples/rp/src/bin/shared_bus.rs
+    // create a shared bus for multiple devices
+    // https://github.com/embassy-rs/embassy/blob/main/examples/rp/src/bin/shared_bus.rs
     static I2CBUS: StaticCell<I2cBus> = StaticCell::new();
-    let i2c_bus = I2CBUS.init(Mutex::<CriticalSectionRawMutex, _>::new(i2c));
-    // let i2c_bus = Mutex::<CriticalSectionRawMutex, _>::new(i2c);
-
-    let _ = spawner;
-    let mut _rtc = Ds1338::bind(&i2c_bus, Ds1338::DEFAULT_ADDRESS);
+    let i2c = I2CBUS.init(Mutex::<CriticalSectionRawMutex, _>::new(i2c));
 
     // rtc.send(&[0, 0b0000_0000, 0b0010_0000, 0b0000_0001]).await; // set 01:20:00
 
-    spawner.must_spawn(radio(
-        i2c_bus,
-        Si4706Radio::ADDRESS_SEN_HIGH,
-        peripherals.GPIO3.into(),
-        peripherals.GPIO9.into(), // TODO
-        &RDSTIME,
-    ));
-    spawner.must_spawn(ticktock(i2c_bus, &SECONDS, &RDSTIME));
+    spawner.must_spawn(radio(i2c, peripherals.GPIO3.into(), &RDSTIME));
+    spawner.must_spawn(ticktock(i2c, &SECONDS, &RDSTIME));
     spawner.must_spawn(seconds_ticker());
-
-    let mut int = Input::new(
-        peripherals.GPIO10,
-        InputConfig::default().with_pull(gpio::Pull::None),
-    );
-    loop {
-        info!(" ---- GPIO: {:?} ----", int.level());
-        int.wait_for_any_edge().await;
-    }
-
-    // loop {
-    // SECONDS_TICKER.wait().await;
-    // let ts = Timestamp::from_microsecond(rtc.current_time_us() as i64).unwrap();
-    // let mmss = ts.strftime("%M:%S");
-    // info!("{} // {}", mmss, ts.subsec_millisecond());
-    // buf = format!("{}", mmss).unwrap();
-    // display.send(buf.as_bytes()).await;
-    // ds1338.get().await;
-    // let ts = Timestamp::from_microsecond(rtc.current_time_us() as i64).unwrap();
-    // }
 }
 
 #[embassy_executor::task]
 pub async fn radio(
     bus: &'static I2cBus,
-    address: u8,
     enable_pin: AnyPin<'static>,
-    interrupt_pin: AnyPin<'static>,
     rdstime: &'static Watch<CriticalSectionRawMutex, jiff::Zoned, 2>,
 ) {
-    let mut radio = Si4706Radio::bind(bus, address, enable_pin, interrupt_pin);
+    let mut radio = Si4706Radio::bind(bus, Si4706Radio::ADDRESS_SEN_HIGH, enable_pin);
     let rdstime = rdstime.sender();
-    radio.power_on().await;
-    radio.get_revision().await;
+    radio.power_up().await;
+    radio.log_revision().await;
     radio.preparations().await;
     radio.tune(10000).await;
     Timer::after_secs(1).await;
@@ -156,6 +121,7 @@ pub async fn radio(
                     block_a, group, block_c, block_d
                 );
                 let dt = rds_to_julian(&rds);
+                // TODO: add plausability check, if it fits previous values
                 rdstime.send(dt);
             } else {
                 debug!(
@@ -176,38 +142,38 @@ pub async fn ticktock(
     rdstime: &'static Watch<CriticalSectionRawMutex, jiff::Zoned, 2>,
 ) {
     let mut vfd = VacuumDisplay::bind(bus, VacuumDisplay::DEFAULT_ADDRESS);
-    let mut rtc = Ds1338::bind(bus, Ds1338::DEFAULT_ADDRESS);
+    vfd.brightness(100).await;
+
+    let mut rtc = Ds1338::bind(bus);
+    info!("RTC: {:?}", rtc.get().await);
+    rtc.set_controls(RtcControls {
+        oscillator_stop: false,
+        output_control: true,
+        sqaurewave_output: true,
+        rate_select: SqweRate::_32768kHz,
+    })
+    .await;
+
     let mut tick = ticker.receiver().unwrap();
     let mut timeupdate = rdstime.receiver().unwrap();
-    let mut lasttime = jiff::civil::datetime(2000, 01, 01, 0, 0, 0, 0)
-        .to_zoned(jiff::tz::Offset::constant(0).to_time_zone())
-        .unwrap();
-    vfd.brightness(100).await;
+
     loop {
         match select::select(tick.changed(), timeupdate.changed()).await {
-            Either::First(t) => {
-                let t = t.as_secs();
-                let mut str = format!(5; "{:02}:{:02}", lasttime.hour(), lasttime.minute())
+            Either::First(_) => {
+                let dt = rtc.get_time().await;
+                let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())
                     .unwrap()
                     .into_bytes();
-                // let mins = (t / 60) % 100;
-                // let secs = t % 60;
-                if t % 2 == 0 {
+                if dt.second() % 2 == 0 {
                     str[2] = b' ';
                 }
                 vfd.send(&str).await;
             }
             Either::Second(upd) => {
-                lasttime = upd;
+                rtc.set_time(upd.datetime()).await;
             }
         }
     }
-    // loop {
-    //     tick.changed().await;
-    //     vfd.send(&[b'H', b'E', b' ', b'L', b'O']).await;
-    //     tick.changed().await;
-    //     vfd.send(&[b'H', b'E', b':', b'L', b'O']).await;
-    // }
 }
 
 #[embassy_executor::task]
