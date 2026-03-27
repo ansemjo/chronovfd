@@ -24,7 +24,7 @@ use esp_hal::timer::timg::TimerGroup;
 use heapless::format;
 use log::{debug, info};
 
-use radiocore::display::VacuumDisplay;
+use radiocore::display::{VacuumDisplay, nightlight_curve};
 use radiocore::radio::{Si4706Radio, rds_to_julian};
 use radiocore::rtc::{Ds1338, RtcControls, SqweRate};
 use static_cell::StaticCell;
@@ -161,6 +161,11 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
+                // if dt.second() == 0 {
+                let brightness = nightlight_curve(dt, 66, 120);
+                debug!("set brightness {}", brightness);
+                vfd.brightness(brightness).await;
+                // }
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())
                     .unwrap()
                     .into_bytes();
