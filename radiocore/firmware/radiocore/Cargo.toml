@@ -18,11 +18,7 @@ log = "0.4.27"
 
 embassy-executor = { version = "0.9.1", features = ["log"] }
 embassy-time = { version = "0.5.0", features = ["log"] }
-esp-backtrace = { version = "0.18.1", features = [
-  "esp32c3",
-  "panic-handler",
-  "println",
-] }
+esp-backtrace = { version = "0.18.1", features = ["custom-halt", "esp32c3", "panic-handler", "println"] }
 esp-println = { version = "0.16.1", features = ["esp32c3", "log-04"] }
 
 critical-section = "1.2.0"

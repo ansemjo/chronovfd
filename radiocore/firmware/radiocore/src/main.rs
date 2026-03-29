@@ -13,7 +13,6 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::watch::Watch;
 use embassy_time::{Duration, Instant, Timer};
-use esp_backtrace as _;
 use esp_hal::Async;
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::AnyPin;
@@ -24,7 +23,23 @@ use esp_hal::timer::timg::TimerGroup;
 use heapless::format;
 use log::{debug, info};
 
-use radiocore::display::{VacuumDisplay, nightlight_curve};
+use esp_backtrace as _;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn custom_halt() -> ! {
+    const RESET: Option<&'static str> = option_env!("ESP_BACKTRACE");
+    if let Some(r) = RESET
+        && r == "RESET"
+    {
+        // reset the chip on panic
+        esp_hal::system::software_reset();
+    }
+    // otherwise drop to infinite loop
+    loop {}
+}
+
+use radiocore::display::VacuumDisplay;
+use radiocore::nightlight::interpolate_brightness;
 use radiocore::radio::{Si4706Radio, rds_to_julian};
 use radiocore::rtc::{Ds1338, RtcControls, SqweRate};
 use static_cell::StaticCell;
@@ -161,11 +176,9 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
-                // if dt.second() == 0 {
-                let brightness = nightlight_curve(dt, 66, 120);
+                let brightness = interpolate_brightness(dt, 66, 120);
                 debug!("set brightness {}", brightness);
                 vfd.brightness(brightness).await;
-                // }
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())
                     .unwrap()
                     .into_bytes();
