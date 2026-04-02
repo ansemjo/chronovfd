@@ -1,11 +1,25 @@
 use embassy_time::Timer;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
+use log::{info, warn};
 
 use crate::{I2CBus, I2cBusDevice};
 
 pub struct Si4706Radio<'a> {
     i2c: I2cBusDevice<'a>,
     enable: Output<'a>,
+    updates: heapless::HistoryBuf<RDSUpdate, 5>,
+}
+
+#[derive(Debug)]
+pub struct RDSUpdate {
+    instant: embassy_time::Instant,
+    datetime: jiff::Zoned,
+}
+
+impl RDSUpdate {
+    pub fn new(instant: embassy_time::Instant, datetime: jiff::Zoned) -> Self {
+        RDSUpdate { instant, datetime }
+    }
 }
 
 impl Si4706Radio<'_> {
@@ -17,6 +31,7 @@ impl Si4706Radio<'_> {
         Si4706Radio {
             i2c: I2cBusDevice::new(bus, address),
             enable: Output::new(enable_pin, Level::Low, OutputConfig::default()),
+            updates: heapless::HistoryBuf::new(),
         }
     }
 
@@ -217,8 +232,9 @@ impl Si4706Radio<'_> {
         }
     }
 
-    pub async fn is_rds_ready(&mut self, rds: &mut [u8]) -> bool {
+    pub async fn is_rds_ready(&mut self, rds: &mut [u8]) -> Option<embassy_time::Instant> {
         let mut buf = [0; 1];
+        let now = embassy_time::Instant::now();
         self.i2c.write(&[Self::GET_INT_STATUS]).await.unwrap();
         self.i2c.read(&mut buf).await.unwrap();
         if status(&buf[0]).rds_data {
@@ -228,10 +244,51 @@ impl Si4706Radio<'_> {
             // log::info!("[RDS] {:08b} {:08b}", rds[1], rds[2]);
             if (rds[1] & 0x01) != 0 && (rds[2] & 0x01) != 0 {
                 // rds_recv and rds is in sync
-                return true;
+                return Some(now);
             }
         }
-        false
+        None
+    }
+
+    // allowed drift of RDS updates in seconds
+    const PLAUSIBLE_ERROR: i64 = 10;
+
+    pub fn plausible_update(&mut self, now: RDSUpdate) -> Option<jiff::Zoned> {
+        info!("checking update: {:?}", now.datetime);
+        let length = self.updates.len();
+        if length < 2 {
+            // can't do a majority vote yet, just trust it
+            warn!("not enough updates in buffer, can't do majority vote");
+            self.updates.write(now);
+            return Some(self.updates.recent().unwrap().datetime.clone());
+        }
+
+        let mut plausible: usize = 0;
+        for then in self.updates.iter() {
+            // calculate deltas and drift in seconds
+            let d_instant = now.instant.duration_since(then.instant).as_secs() as i64;
+            let d_timestamp = (&now.datetime - &then.datetime)
+                .total(jiff::Unit::Second)
+                .unwrap() as i64;
+            let drift = d_instant - d_timestamp;
+            // plausible if absolute drift is smaller than allowed error
+            info!(
+                "drift from {:?} ({:?}s ago): {}s",
+                then.datetime, d_instant, drift
+            );
+            if drift.abs() < Self::PLAUSIBLE_ERROR {
+                plausible += 1;
+            }
+        }
+        // add update after checking, whatever the result
+        self.updates.write(now);
+        // if the majority was plausible, return the date
+        if plausible > (length / 2) {
+            info!("update is plausible ({} / {})!", plausible, length);
+            return Some(self.updates.recent().unwrap().datetime.clone());
+        }
+        warn!("discard this update, implausible drift!");
+        None
     }
 }
 
@@ -261,6 +318,7 @@ pub fn rds_to_julian(r: &[u8]) -> jiff::Zoned {
     let mut julian = (((r[7] as u32) & 0b11) << 15) + ((r[8] as u32) << 7) + ((r[9] as u32) >> 1);
     let mut hours = (((r[9] & 0x01) << 4) + ((r[10] & 0xf0) >> 4)) as i8;
     let mut mins = (((r[10] & 0x0f) << 2) + ((r[11] & 0xc0) >> 6)) as i8;
+    // offset is half hours!
     let offset = (if (r[11] & 0x10) != 0 { -1 } else { 1 }) * (r[11] & 0x0f) as i8;
 
     // calculate the proper time with offset
@@ -296,7 +354,6 @@ pub fn rds_to_julian(r: &[u8]) -> jiff::Zoned {
     );
 
     // return the parsed date as jiff datetime
-    // TODO: add an Instant at earliest known time for this data to correct for processing delays
     let dt = jiff::civil::datetime(year, month, day, hours, mins, 0, 0);
     let tz = jiff::tz::Offset::from_seconds(offset as i32 * 30 * 60).unwrap();
     dt.to_zoned(tz.to_time_zone()).unwrap()

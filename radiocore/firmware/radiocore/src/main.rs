@@ -40,7 +40,7 @@ pub extern "C" fn custom_halt() -> ! {
 
 use radiocore::display::VacuumDisplay;
 use radiocore::nightlight::interpolate_brightness;
-use radiocore::radio::{Si4706Radio, rds_to_julian};
+use radiocore::radio::{RDSUpdate, Si4706Radio, rds_to_julian};
 use radiocore::rtc::{Ds1338, RtcControls, SqweRate};
 use static_cell::StaticCell;
 
@@ -118,7 +118,7 @@ pub async fn radio(
             radio.receiver_status().await;
             lastinfo = Instant::now();
         }
-        if radio.is_rds_ready(&mut rds).await {
+        if let Some(instant) = radio.is_rds_ready(&mut rds).await {
             let block_a = u16::from_be_bytes([rds[4], rds[5]]);
             let block_b = u16::from_be_bytes([rds[6], rds[7]]);
             let block_c = u16::from_be_bytes([rds[8], rds[9]]);
@@ -136,8 +136,9 @@ pub async fn radio(
                     block_a, group, block_c, block_d
                 );
                 let dt = rds_to_julian(&rds);
-                // TODO: add plausability check, if it fits previous values
-                rdstime.send(dt);
+                if let Some(dt) = radio.plausible_update(RDSUpdate::new(instant, dt)) {
+                    rdstime.send(dt);
+                }
             } else {
                 debug!(
                     "RDS [{:04x}] typ: {}   C={:04x}, D={:04x}",
@@ -176,7 +177,7 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
-                let brightness = interpolate_brightness(dt, 66, 120);
+                let brightness = interpolate_brightness(dt, 63, 120);
                 debug!("set brightness {}", brightness);
                 vfd.brightness(brightness).await;
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())
