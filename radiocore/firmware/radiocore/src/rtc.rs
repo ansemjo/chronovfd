@@ -99,13 +99,6 @@ impl From<&[u8; 8]> for RtcState {
         let day = bcd_decode(r[4]); // date-day, not dow
         let month = bcd_decode(r[5]);
         let year = bcd_decode(r[6]);
-        if seconds >= 60 || minutes >= 60 || hours >= 24 || day >= 31 || month >= 12 || year >= 100
-        {
-            panic!(
-                "invalid datetime data: {}-{}-{} {}:{}:{}",
-                year, month, day, hours, minutes, seconds
-            );
-        }
         let datetime = jiff::civil::datetime(
             year as i16 + 2000,
             month.try_into().unwrap(),
