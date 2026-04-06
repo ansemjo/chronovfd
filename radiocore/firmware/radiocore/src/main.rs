@@ -132,12 +132,13 @@ pub async fn radio(
             };
             if group == "DATETIME" {
                 info!(
-                    "RDS [{:04x}] typ: {}   C={:04x}, D={:04x}",
-                    block_a, group, block_c, block_d
+                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x}",
+                    block_a, group, block_b, block_c, block_d
                 );
-                let dt = rds_to_julian(&rds);
-                if let Some(dt) = radio.plausible_update(RDSUpdate::new(instant, dt)) {
-                    rdstime.send(dt);
+                if let Some(dt) = rds_to_julian(&rds) {
+                    if let Some(dt) = radio.plausible_update(RDSUpdate::new(instant, dt)) {
+                        rdstime.send(dt);
+                    }
                 }
             } else {
                 debug!(
@@ -177,7 +178,7 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
-                let brightness = interpolate_brightness(dt, 63, 120);
+                let brightness = interpolate_brightness(dt, 64, 120);
                 debug!("set brightness {}", brightness);
                 vfd.brightness(brightness).await;
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())

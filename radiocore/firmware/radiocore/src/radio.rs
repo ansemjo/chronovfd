@@ -311,7 +311,7 @@ fn status(byte: &u8) -> STATUS {
     };
 }
 
-pub fn rds_to_julian(r: &[u8]) -> jiff::Zoned {
+pub fn rds_to_julian(r: &[u8]) -> Option<jiff::Zoned> {
     // collect payload bits; "half block 2" through "block 4" are rds[7] to rds[11]
     // https://en.wikipedia.org/wiki/Radio_Data_System#Group_type_4_%E2%80%93_Version_A_%E2%80%93_Clock_time_and_date
     // https://en.wikipedia.org/wiki/Julian_day#Variants
@@ -320,6 +320,12 @@ pub fn rds_to_julian(r: &[u8]) -> jiff::Zoned {
     let mut mins = (((r[10] & 0x0f) << 2) + ((r[11] & 0xc0) >> 6)) as i8;
     // offset is half hours!
     let offset = (if (r[11] & 0x10) != 0 { -1 } else { 1 }) * (r[11] & 0x0f) as i8;
+
+    // check if the julian date is plausible at all
+    // 15078 -> 1900;  61041 -> 2026 NYE;  100000 ~ 2132
+    if julian < 61041 || julian > 100000 {
+        return None;
+    }
 
     // calculate the proper time with offset
     // based on Konrad Kosmatka's librdsparser code in:
@@ -356,5 +362,5 @@ pub fn rds_to_julian(r: &[u8]) -> jiff::Zoned {
     // return the parsed date as jiff datetime
     let dt = jiff::civil::datetime(year, month, day, hours, mins, 0, 0);
     let tz = jiff::tz::Offset::from_seconds(offset as i32 * 30 * 60).unwrap();
-    dt.to_zoned(tz.to_time_zone()).unwrap()
+    Some(dt.to_zoned(tz.to_time_zone()).unwrap())
 }
