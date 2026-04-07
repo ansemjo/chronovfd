@@ -1,6 +1,6 @@
 use embassy_time::Timer;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
-use log::{info, warn};
+use log::{error, info, warn};
 
 use crate::{I2CBus, I2cBusDevice};
 
@@ -196,7 +196,7 @@ impl Si4706Radio<'_> {
         let rssi = response[4];
         let snr = response[5];
         log::info!(
-            "fm recevier: valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
+            "FM Recevier Status: valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
             valid,
             rssi,
             snr
@@ -254,7 +254,7 @@ impl Si4706Radio<'_> {
     const PLAUSIBLE_ERROR: i64 = 10;
 
     pub fn plausible_update(&mut self, now: RDSUpdate) -> Option<jiff::Zoned> {
-        info!("checking update: {:?}", now.datetime);
+        // info!("checking update: {:?}", now.datetime);
         let length = self.updates.len();
         if length < 2 {
             // can't do a majority vote yet, just trust it
@@ -272,22 +272,27 @@ impl Si4706Radio<'_> {
                 .unwrap() as i64;
             let drift = d_instant - d_timestamp;
             // plausible if absolute drift is smaller than allowed error
-            info!(
-                "drift from {:?} ({:?}s ago): {}s",
-                then.datetime, d_instant, drift
-            );
             if drift.abs() < Self::PLAUSIBLE_ERROR {
+                // TODO: use buckets instead?
+                // rather than checking for an absolute error from the most recently received datetime,
+                // one could hash all buffer items into buckets (by minute, which they "agree" on) and
+                // then use the datetime from the largest of those buckets
                 plausible += 1;
+            } else {
+                warn!(
+                    "drift from {:?} ({:?}s ago): {}s",
+                    then.datetime, d_instant, drift
+                );
             }
         }
         // add update after checking, whatever the result
         self.updates.write(now);
         // if the majority was plausible, return the date
-        if plausible > (length / 2) {
+        if plausible >= ((length + 1) / 2) {
             info!("update is plausible ({} / {})!", plausible, length);
             return Some(self.updates.recent().unwrap().datetime.clone());
         }
-        warn!("discard this update, implausible drift!");
+        error!("discard this update, implausible drift!");
         None
     }
 }
@@ -324,6 +329,7 @@ pub fn rds_to_julian(r: &[u8]) -> Option<jiff::Zoned> {
     // check if the julian date is plausible at all
     // 15078 -> 1900;  61041 -> 2026 NYE;  100000 ~ 2132
     if julian < 61041 || julian > 100000 {
+        error!("parsed julian date is out of bounds (2026..2132)");
         return None;
     }
 
@@ -336,14 +342,14 @@ pub fn rds_to_julian(r: &[u8]) -> Option<jiff::Zoned> {
         m if m < 0 => hours -= 1,
         _ => (),
     }
-    mins = mins % 60;
+    mins = modulo(mins, 60);
     hours += offset / 2;
     match hours {
         h if h >= 24 => julian += 1,
         h if h < 0 => julian -= 1,
         _ => (),
     }
-    hours = hours % 24;
+    hours = modulo(hours, 24);
 
     // calculate year-month-day from modified julian date
     let year = (julian * 100 - 1507820) / 36525;
@@ -363,4 +369,13 @@ pub fn rds_to_julian(r: &[u8]) -> Option<jiff::Zoned> {
     let dt = jiff::civil::datetime(year, month, day, hours, mins, 0, 0);
     let tz = jiff::tz::Offset::from_seconds(offset as i32 * 30 * 60).unwrap();
     Some(dt.to_zoned(tz.to_time_zone()).unwrap())
+}
+
+// "proper" modulo instead of just the remainder operation, which always returns positive
+fn modulo<T>(a: T, m: T) -> <<T as core::ops::Add>::Output as core::ops::Rem<T>>::Output
+where
+    T: core::ops::Rem<Output = T> + core::ops::Add + Copy + From<i8>,
+    <T as core::ops::Add>::Output: core::ops::Rem<T>,
+{
+    ((a % m) + m) % m
 }

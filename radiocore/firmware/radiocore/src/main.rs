@@ -21,7 +21,7 @@ use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use heapless::format;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 use esp_backtrace as _;
 
@@ -114,7 +114,7 @@ pub async fn radio(
     let mut rds = [0; 14];
     let mut lastinfo = Instant::now();
     loop {
-        if lastinfo.elapsed() > Duration::from_secs(20) {
+        if lastinfo.elapsed() > Duration::from_secs(60) {
             radio.receiver_status().await;
             lastinfo = Instant::now();
         }
@@ -125,15 +125,24 @@ pub async fn radio(
             let block_d = u16::from_be_bytes([rds[10], rds[11]]);
             let b_group = (block_b & 0xf000) >> 12;
             let group = match b_group {
-                0x00 => "STATION",
-                0x02 => "MESSAGE",
+                0x00 => "STATION ",
+                0x02 => "MESSAGE ",
                 0x04 => "DATETIME",
-                _ => &format!(2; "{:02x}", b_group).unwrap(),
+                _ => &format!(8; "  [{:02x}]  ", b_group).unwrap(),
             };
+            let block_a_err = (rds[12] >> 6) & 0b11;
+            let block_b_err = (rds[12] >> 4) & 0b11;
+            let block_c_err = (rds[12] >> 2) & 0b11;
+            let block_d_err = (rds[12] >> 0) & 0b11;
             if group == "DATETIME" {
-                info!(
-                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x}",
-                    block_a, group, block_b, block_c, block_d
+                warn!(
+                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x} err={:?}",
+                    block_a,
+                    group,
+                    block_b,
+                    block_c,
+                    block_d,
+                    [block_a_err, block_b_err, block_c_err, block_d_err],
                 );
                 if let Some(dt) = rds_to_julian(&rds) {
                     if let Some(dt) = radio.plausible_update(RDSUpdate::new(instant, dt)) {
@@ -141,9 +150,14 @@ pub async fn radio(
                     }
                 }
             } else {
-                debug!(
-                    "RDS [{:04x}] typ: {}   C={:04x}, D={:04x}",
-                    block_a, group, block_c, block_d
+                esp_println::print!(
+                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x} err={:?}\r",
+                    block_a,
+                    group,
+                    block_b,
+                    block_c,
+                    block_d,
+                    [block_a_err, block_b_err, block_c_err, block_d_err],
                 );
             }
         }
