@@ -9,7 +9,6 @@
 
 use embassy_executor::Spawner;
 use embassy_futures::select::{self, Either};
-use embassy_futures::yield_now;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::watch::Watch;
@@ -22,7 +21,7 @@ use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use heapless::format;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 use esp_backtrace as _;
 
@@ -52,6 +51,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 pub static SECONDS: Watch<CriticalSectionRawMutex, Instant, 2> = Watch::new();
 
 pub static RDSTIME: Watch<CriticalSectionRawMutex, jiff::Zoned, 2> = Watch::new();
+
+pub static RESET_RTC: bool = false;
 
 type I2cBus = Mutex<CriticalSectionRawMutex, i2c::master::I2c<'static, Async>>;
 
@@ -92,8 +93,6 @@ async fn main(spawner: Spawner) {
     static I2CBUS: StaticCell<I2cBus> = StaticCell::new();
     let i2c = I2CBUS.init(Mutex::<CriticalSectionRawMutex, _>::new(i2c));
 
-    // rtc.send(&[0, 0b0000_0000, 0b0010_0000, 0b0000_0001]).await; // set 01:20:00
-
     spawner.must_spawn(radio(i2c, peripherals.GPIO3.into(), &RDSTIME));
     spawner.must_spawn(ticktock(i2c, &SECONDS, &RDSTIME));
     spawner.must_spawn(seconds_ticker());
@@ -109,27 +108,107 @@ pub async fn radio(
     let rdstime = rdstime.sender();
     radio.power_up().await;
     radio.log_revision().await;
-    radio.preparations().await;
-    // radio.full_frequency_scan().await;
+
+    let threshold_snr = 15;
+    let threshold_rssi = 20;
+    radio.preparations(threshold_snr, threshold_rssi).await;
+
     // radio.tune(10000).await; // R.SH
     // radio.tune(09995).await; // R.SH
     // radio.tune(08755).await; // NDR 2
-    radio.tune(09035).await; // NDR 90.3
+    // radio.tune(09035).await; // NDR 90.3
+    // radio.tune(09400).await; // BAD: no signal for testing
     // radio.tune(10365).await; // Radio Hamburg
     // radio.tune(09975).await; // Berlin: Antenne Brandenburg
     // radio.tune(10750).await; // Berlin: BB Radio // NO DateTime despite very good RDS
     // radio.tune(10455).await; // Berlin: RTL
+    let best = radio.full_frequency_scan(false).await;
+    radio.tune(best[0].freq).await;
+    let fm = radio.tune_status(false, false).await;
+    info!("Tuned to {:5.2} MHz", f32::from(fm.freq) / 100.0);
     Timer::after_secs(1).await;
-    let mut lastinfo = Instant::now();
+
+    // channel quality tracking
+    let mut rds_packet_count: u32 = 0;
+    let mut datetime_packet_count: u32 = 0;
+    let mut last_quality_check = Instant::now();
+    let mut no_datetime_periods: u8 = 0;
+
+    async fn reseek(radio: &mut Si4706Radio<'_>, periods: &mut u8) {
+        radio.seek().await;
+        let new_fm = radio.tune_status(false, false).await;
+        info!(
+            "Tuned to {:5.2} MHz with snr={:2}",
+            f32::from(new_fm.freq) / 100.0,
+            new_fm.snr
+        );
+        *periods = 0;
+    }
 
     loop {
-        if lastinfo.elapsed() > Duration::from_secs(20) {
-            radio.receiver_status().await;
-            lastinfo = Instant::now();
+        // periodically check channel quality
+        if last_quality_check.elapsed() > Duration::from_secs(60) {
+            let fm = radio.tune_status(false, false).await;
+
+            // Two-stage quality check:
+            // 1. No RDS packets at all or SNR low -> channel is bad
+            // 2. RDS packets received but no datetime -> still acceptable for a while
+            //    (datetime packets come once per minute, might have errors)
+            let received_rds = rds_packet_count > 0;
+            let received_datetime = datetime_packet_count > 0;
+
+            if fm.snr < threshold_snr || !received_rds {
+                warn!(
+                    "Channel {:5.2} MHz bad: snr={:2}, #rds={}, #datetime={}, seeking ...",
+                    f32::from(fm.freq) / 100.0,
+                    fm.snr,
+                    rds_packet_count,
+                    datetime_packet_count
+                );
+                reseek(&mut radio, &mut no_datetime_periods).await;
+            } else if !received_datetime {
+                no_datetime_periods += 1;
+                if no_datetime_periods >= 10 {
+                    // 10 periods * 60s = 10 minutes without datetime
+                    warn!(
+                        "Channel {:5.2} MHz bad: no datetime packets received, #rds={}, seeking...",
+                        f32::from(fm.freq) / 100.0,
+                        rds_packet_count
+                    );
+                    reseek(&mut radio, &mut no_datetime_periods).await;
+                } else {
+                    warn!(
+                        "Channel {:5.2} MHz questionable: snr={:2}, #rds={}, #datetime={}",
+                        f32::from(fm.freq) / 100.0,
+                        fm.snr,
+                        rds_packet_count,
+                        datetime_packet_count
+                    );
+                }
+            } else {
+                // channel is good: receives RDS and datetime packets
+                no_datetime_periods = 0;
+                info!(
+                    "Channel {:5.2} MHz good: snr={:2}, #rds={}, #datetime={}",
+                    f32::from(fm.freq) / 100.0,
+                    fm.snr,
+                    rds_packet_count,
+                    datetime_packet_count
+                );
+            }
+
+            // reset counters for next quality check
+            last_quality_check = Instant::now();
+            rds_packet_count = 0;
+            datetime_packet_count = 0;
         }
+
         if let Some(packet) = radio.is_rds_ready().await {
+            rds_packet_count += 1;
+
             match packet.content {
                 RdsContent::DateTime(datetime) => {
+                    datetime_packet_count += 1;
                     if let Some(dt) =
                         radio.plausible_update(RDSUpdate::new(packet.instant, datetime))
                     {
@@ -140,10 +219,9 @@ pub async fn radio(
             }
             Timer::after_millis(5).await;
         } else {
-            yield_now().await;
+            Timer::after_millis(2).await;
         }
     }
-    // radio.tune_status().await;
 }
 
 #[embassy_executor::task]
@@ -167,6 +245,12 @@ pub async fn ticktock(
     })
     .await;
 
+    // remove to actually retain rtc data
+    if RESET_RTC {
+        let reset = jiff::civil::date(2000, 01, 01).at(00, 00, 00, 0);
+        rtc.set_time(reset).await;
+    }
+
     let mut tick = ticker.receiver().unwrap();
     let mut timeupdate = rdstime.receiver().unwrap();
 
@@ -174,7 +258,7 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
-                let brightness = interpolate_brightness(dt, 62, 120);
+                let brightness = interpolate_brightness(dt, 64, 120);
                 debug!("set brightness {}", brightness);
                 vfd.brightness(brightness).await;
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())

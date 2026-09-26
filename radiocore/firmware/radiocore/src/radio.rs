@@ -28,12 +28,12 @@ impl RDSUpdate {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct FMTuneStatus {
-    band_limit: bool,
-    valid: bool,
-    freq: u16,
-    rssi: u8,
-    snr: u8,
-    antcap: u8,
+    pub band_limit: bool,
+    pub valid: bool,
+    pub freq: u16,
+    pub rssi: u8,
+    pub snr: u8,
+    pub antcap: u8,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -136,7 +136,7 @@ impl Si4706Radio<'_> {
         self.wait_for_cts().await;
     }
 
-    pub async fn preparations(&mut self) {
+    pub async fn preparations(&mut self, threshold_snr: u8, threshold_rssi: u8) {
         log::debug!("FM_DEEMPHASIS: 50µs (EU)");
         self.set_property(0x1100, 0b01).await; // 10: 75µs (USA), 01: 50µs (EU, Japan)
         log::debug!("FM_MAX_TUNE_ERROR: 40 kHz");
@@ -150,12 +150,10 @@ impl Si4706Radio<'_> {
         log::debug!("FM_SEEK_FREQ_SPACING: 50 kHz");
         self.set_property(0x1402, 5).await; // in 10 kHz; allowed 50, 100, or 200
 
-        let threshold_snr = 15;
         log::debug!("FM_SEEK_TUNE_SNR_THRESHOLD: {} dB", threshold_snr);
-        self.set_property(0x1403, threshold_snr).await;
-        let threshold_rssi = 20;
+        self.set_property(0x1403, threshold_snr as u16).await;
         log::debug!("FM_SEEK_TUNE_RSSI_THRESHOLD: {} dBµV", threshold_rssi);
-        self.set_property(0x1404, threshold_rssi).await;
+        self.set_property(0x1404, threshold_rssi as u16).await;
 
         log::debug!("FM_RDS_INT_SOURCE: on data receive in FIFO");
         self.set_property(0x1500, 0x0001).await;
@@ -167,7 +165,7 @@ impl Si4706Radio<'_> {
         self.set_property(0x1503, 0x2222).await; // default: 0x1111
     }
 
-    pub async fn full_frequency_scan(&mut self) {
+    pub async fn full_frequency_scan(&mut self, print_all: bool) -> [Frequency; 10] {
         log::info!("Starting full frequency scan ...");
         let mut best: [Frequency; 10] = [Frequency {
             freq: 0,
@@ -176,11 +174,15 @@ impl Si4706Radio<'_> {
         }; 10];
 
         // print csv as we go ...
-        println!("frequency, rssi, snr");
-        for f in (8750..10800).step_by(5) {
+        if print_all {
+            println!("frequency, rssi, snr");
+        }
+        for f in (8750..10800).step_by(10) {
             self.tune(f).await;
             let fm = self.tune_status(false, false).await;
-            println!("{:5}, {:2}, {:2}", f, fm.rssi, fm.snr);
+            if print_all {
+                println!("{:5}, {:2}, {:2}", f, fm.rssi, fm.snr);
+            }
 
             // check if this is among our best results and insert in list accordingly
             let freq = Frequency {
@@ -212,6 +214,7 @@ impl Si4706Radio<'_> {
                 println!("{:5}, {:2}, {:2}", f.freq, f.rssi, f.snr);
             }
         }
+        best
     }
 
     pub async fn set_property(&mut self, prop: u16, value: u16) {
@@ -289,25 +292,21 @@ impl Si4706Radio<'_> {
         };
     }
 
-    pub async fn receiver_status(&mut self) {
+    pub async fn receiver_status(&mut self) -> Frequency {
         let mut response = [0; 8];
         self.i2c
             .write_read(&[Self::FM_RSQ_STATUS, 0x00], &mut response)
             .await
             .unwrap();
-        let valid = (response[2] & 1) != 0;
+        // let valid = (response[2] & 1) != 0;
         let rssi = response[4];
         let snr = response[5];
-        let freq = self.tune_status(false, false).await.freq;
-        log::info!(
-            "FM Recevier Status: freq: {:6.2} MHz [{}] valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
-            f32::from(freq) / 100.0,
-            str::from_utf8(&self.station).unwrap(),
-            valid,
-            rssi,
-            snr
-        );
         self.wait_for_cts().await;
+        Frequency {
+            freq: self.frequency,
+            rssi,
+            snr,
+        }
     }
 
     // wait for "clear to send"
