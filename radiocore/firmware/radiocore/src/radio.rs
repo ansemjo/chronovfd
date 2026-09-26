@@ -8,7 +8,9 @@ use crate::{I2CBus, I2cBusDevice};
 pub struct Si4706Radio<'a> {
     i2c: I2cBusDevice<'a>,
     enable: Output<'a>,
-    updates: heapless::HistoryBuf<RDSUpdate, 5>,
+    datetime_updates: heapless::HistoryBuf<RDSUpdate, 5>,
+    frequency: u16,
+    station: [u8; 8],
 }
 
 #[derive(Debug)]
@@ -72,7 +74,9 @@ impl Si4706Radio<'_> {
         Si4706Radio {
             i2c: I2cBusDevice::new(bus, address),
             enable: Output::new(enable_pin, Level::Low, OutputConfig::default()),
-            updates: heapless::HistoryBuf::new(),
+            datetime_updates: heapless::HistoryBuf::new(),
+            frequency: 0,
+            station: [' ' as u8; 8],
         }
     }
 
@@ -247,19 +251,23 @@ impl Si4706Radio<'_> {
             .unwrap();
         Timer::after_millis(100).await;
         self.wait_for_stc().await;
-        self.tune_status(false, true).await;
+        let fm = self.tune_status(false, true).await;
+        self.frequency = fm.freq;
+        self.station = [' ' as u8; 8];
     }
 
     pub async fn tune(&mut self, freq: u16) {
         log::debug!("Radio tune to {:6.2} MHz ...", f32::from(freq) / 100.0);
-        let freq = freq.to_be_bytes();
+        let f = freq.to_be_bytes();
         let antcap = 0x00; // automatic
         self.i2c
-            .write(&[Self::FM_TUNE_FREQ, 0x00, freq[0], freq[1], antcap])
+            .write(&[Self::FM_TUNE_FREQ, 0x00, f[0], f[1], antcap])
             .await
             .unwrap();
         Timer::after_millis(100).await;
         self.wait_for_cts().await;
+        self.frequency = freq;
+        self.station = [' ' as u8; 8];
     }
 
     pub async fn tune_status(&mut self, cancel: bool, intack: bool) -> FMTuneStatus {
@@ -292,8 +300,9 @@ impl Si4706Radio<'_> {
         let snr = response[5];
         let freq = self.tune_status(false, false).await.freq;
         log::info!(
-            "FM Recevier Status: freq: {:6.2} MHz, valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
+            "FM Recevier Status: freq: {:6.2} MHz [{}] valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
             f32::from(freq) / 100.0,
+            str::from_utf8(&self.station).unwrap(),
             valid,
             rssi,
             snr
@@ -329,7 +338,7 @@ impl Si4706Radio<'_> {
         }
     }
 
-    pub fn parse_rds(instant: embassy_time::Instant, rds: &[u8]) -> Option<RdsPacket> {
+    pub fn parse_rds(&mut self, instant: embassy_time::Instant, rds: &[u8]) -> Option<RdsPacket> {
         // 04-05: Block A is always program identification
         // 06-07: Block B is group type and offset
         // 08-11: Block C+D is usually data
@@ -354,18 +363,20 @@ impl Si4706Radio<'_> {
         let content = match group_type {
             // station
             0x00 => {
-                let offset = (block_b & 0b11) as usize;
+                let offset = ((block_b & 0b11) as usize) * 2;
+                self.station[offset] = rds[10];
+                self.station[offset + 1] = rds[11];
                 RdsContent::Station {
-                    offset: offset * 2,
+                    offset: offset,
                     chars: [rds[10], rds[11]],
                 }
             }
             // message
             0x02 => {
-                let offset = (block_b & 0b1111) as usize;
+                let offset = ((block_b & 0b1111) as usize) * 4;
                 let screen = ((block_b & 0x0010) >> 4) as u8;
                 RdsContent::Message {
-                    offset: offset * 4,
+                    offset: offset,
                     chars: [rds[8], rds[9], rds[10], rds[11]],
                     screen,
                 }
@@ -404,7 +415,7 @@ impl Si4706Radio<'_> {
             // log::info!("[RDS] {:08b} {:08b}", rds[1], rds[2]);
             if (rds[1] & 0x01) != 0 && (rds[2] & 0x01) != 0 {
                 // rds_recv and rds is in sync - parse the data
-                return Self::parse_rds(now, &rds);
+                return self.parse_rds(now, &rds);
             }
         }
         None
@@ -415,16 +426,16 @@ impl Si4706Radio<'_> {
 
     pub fn plausible_update(&mut self, now: RDSUpdate) -> Option<jiff::Zoned> {
         // info!("checking update: {:?}", now.datetime);
-        let length = self.updates.len();
+        let length = self.datetime_updates.len();
         if length < 2 {
             // can't do a majority vote yet, just trust it
             warn!("not enough updates in buffer, can't do majority vote");
-            self.updates.write(now);
-            return Some(self.updates.recent().unwrap().datetime.clone());
+            self.datetime_updates.write(now);
+            return Some(self.datetime_updates.recent().unwrap().datetime.clone());
         }
 
         let mut plausible: usize = 0;
-        for then in self.updates.iter() {
+        for then in self.datetime_updates.iter() {
             // calculate deltas and drift in seconds
             let d_instant = now.instant.duration_since(then.instant).as_secs() as i64;
             let d_timestamp = (&now.datetime - &then.datetime)
@@ -445,11 +456,11 @@ impl Si4706Radio<'_> {
             }
         }
         // add update after checking, whatever the result
-        self.updates.write(now);
+        self.datetime_updates.write(now);
         // if the majority was plausible, return the date
         if plausible >= ((length + 1) / 2) {
             info!("update is plausible ({} / {})!", plausible, length);
-            return Some(self.updates.recent().unwrap().datetime.clone());
+            return Some(self.datetime_updates.recent().unwrap().datetime.clone());
         }
         error!("discard this update, implausible drift!");
         None

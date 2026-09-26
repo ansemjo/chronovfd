@@ -113,8 +113,8 @@ pub async fn radio(
     // radio.full_frequency_scan().await;
     // radio.tune(10000).await; // R.SH
     // radio.tune(09995).await; // R.SH
-    radio.tune(08755).await; // NDR 2
-    // radio.tune(09035).await; // NDR 90.3
+    // radio.tune(08755).await; // NDR 2
+    radio.tune(09035).await; // NDR 90.3
     // radio.tune(10365).await; // Radio Hamburg
     // radio.tune(09975).await; // Berlin: Antenne Brandenburg
     // radio.tune(10750).await; // Berlin: BB Radio // NO DateTime despite very good RDS
@@ -122,16 +122,8 @@ pub async fn radio(
     Timer::after_secs(1).await;
     let mut lastinfo = Instant::now();
 
-    let mut station: heapless::String<8> = heapless::String::new();
-    station.push_str("        ").unwrap();
-    let mut message: heapless::String<64> = heapless::String::new();
-    for _ in 0..message.capacity() {
-        message.push(' ').unwrap();
-    }
-    let mut message_screen: u8 = 0;
-
     loop {
-        if lastinfo.elapsed() > Duration::from_secs(60) {
+        if lastinfo.elapsed() > Duration::from_secs(20) {
             radio.receiver_status().await;
             lastinfo = Instant::now();
         }
@@ -144,37 +136,7 @@ pub async fn radio(
                         rdstime.send(dt);
                     }
                 }
-                RdsContent::Station { offset, chars } => {
-                    // warn!("STATION offset={:02}  chars={:?}", offset, char);
-                    unsafe {
-                        let sta = station.as_bytes_mut();
-                        sta[offset] = chars[0] as u8;
-                        sta[offset + 1] = chars[1] as u8;
-                    }
-                    esp_println::print!("RDS {} :: {:?}\r", station, message);
-                }
-                RdsContent::Message {
-                    offset,
-                    chars,
-                    screen,
-                } => {
-                    // warn!("MESSAGE offset={:02}  chars={:?}", offset, char);
-                    if screen != message_screen {
-                        message.clear();
-                        for _ in 0..message.capacity() {
-                            message.push(' ').unwrap();
-                        }
-                        message_screen = screen;
-                    }
-                    unsafe {
-                        let msg = message.as_bytes_mut();
-                        msg[offset] = chars[0] as u8;
-                        msg[offset + 1] = chars[1] as u8;
-                        msg[offset + 2] = chars[2] as u8;
-                        msg[offset + 3] = chars[3] as u8;
-                    }
-                    esp_println::print!("RDS {} :: {:?}\r", station, message);
-                }
+                _ => {}
             }
             Timer::after_millis(5).await;
         } else {
