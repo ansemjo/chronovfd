@@ -1,5 +1,6 @@
 use embassy_time::Timer;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
+use esp_println::println;
 use log::{error, info, warn};
 
 use crate::{I2CBus, I2cBusDevice};
@@ -20,6 +21,24 @@ impl RDSUpdate {
     pub fn new(instant: embassy_time::Instant, datetime: jiff::Zoned) -> Self {
         RDSUpdate { instant, datetime }
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
+pub struct FMTuneStatus {
+    band_limit: bool,
+    valid: bool,
+    freq: u16,
+    rssi: u8,
+    snr: u8,
+    antcap: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Frequency {
+    pub freq: u16,
+    pub rssi: u8,
+    pub snr: u8,
 }
 
 impl Si4706Radio<'_> {
@@ -105,10 +124,10 @@ impl Si4706Radio<'_> {
         log::debug!("FM_SEEK_FREQ_SPACING: 50 kHz");
         self.set_property(0x1402, 5).await; // in 10 kHz; allowed 50, 100, or 200
 
-        let threshold_snr = 12;
+        let threshold_snr = 15;
         log::debug!("FM_SEEK_TUNE_SNR_THRESHOLD: {} dB", threshold_snr);
         self.set_property(0x1403, threshold_snr).await;
-        let threshold_rssi = 22;
+        let threshold_rssi = 20;
         log::debug!("FM_SEEK_TUNE_RSSI_THRESHOLD: {} dBµV", threshold_rssi);
         self.set_property(0x1404, threshold_rssi).await;
 
@@ -117,9 +136,56 @@ impl Si4706Radio<'_> {
         log::debug!("FM_RDS_INT_FIFO_COUNT: 4 groups for interrupt");
         self.set_property(0x1501, 4).await; // 0..25
         log::debug!("FM_RDS_CONFIG: enable RDS, allow only correctable data blocks");
-        self.set_property(0x1502, 0b11_01_10_10_00000001).await; // 0: no err, 1: 1-2, 2: 3-5 corrected, 3: allow all
+        self.set_property(0x1502, 0b10_01_01_01_00000001).await; // 0: no err, 1: 1-2, 2: 3-5 corrected, 3: allow all
         log::debug!("FM_RDS_CONFIDENCE: require higher confidence");
         self.set_property(0x1503, 0x2222).await; // default: 0x1111
+    }
+
+    pub async fn full_frequency_scan(&mut self) {
+        log::info!("Starting full frequency scan ...");
+        let mut best: [Frequency; 10] = [Frequency {
+            freq: 0,
+            rssi: 0,
+            snr: 0,
+        }; 10];
+
+        // print csv as we go ...
+        println!("frequency, rssi, snr");
+        for f in (8750..10800).step_by(5) {
+            self.tune(f).await;
+            let fm = self.tune_status(false, false).await;
+            println!("{:5}, {:2}, {:2}", f, fm.rssi, fm.snr);
+
+            // check if this is among our best results and insert in list accordingly
+            let freq = Frequency {
+                freq: f,
+                rssi: fm.rssi,
+                snr: fm.snr,
+            };
+            let mut pos = 0;
+            while pos < 10 {
+                // sorted by best snr, then rssi
+                if freq.snr > best[pos].snr
+                    || (freq.snr == best[pos].snr && freq.rssi > best[pos].rssi)
+                {
+                    for j in (pos..9).rev() {
+                        best[j + 1] = best[j];
+                    }
+                    best[pos] = freq;
+                    break;
+                }
+                pos += 1;
+            }
+        }
+
+        // print the best stations
+        println!("frequency, rssi, snr");
+        for i in 0..10 {
+            let f = best[i];
+            if f.freq != 0 {
+                println!("{:5}, {:2}, {:2}", f.freq, f.rssi, f.snr);
+            }
+        }
     }
 
     pub async fn set_property(&mut self, prop: u16, value: u16) {
@@ -152,7 +218,7 @@ impl Si4706Radio<'_> {
     }
 
     pub async fn seek(&mut self) {
-        log::info!("SEEK to next channel ...");
+        log::debug!("SEEK to next channel ...");
         self.i2c
             .write(&[Self::FM_SEEK_START, 0b1100])
             .await
@@ -163,7 +229,7 @@ impl Si4706Radio<'_> {
     }
 
     pub async fn tune(&mut self, freq: u16) {
-        log::info!("TUNE to {:3.2} ...", f32::from(freq) / 100.0);
+        log::debug!("Radio tune to {:6.2} MHz ...", f32::from(freq) / 100.0);
         let freq = freq.to_be_bytes();
         let antcap = 0x00; // automatic
         self.i2c
@@ -174,16 +240,23 @@ impl Si4706Radio<'_> {
         self.wait_for_cts().await;
     }
 
-    pub async fn tune_status(&mut self, cancel: bool, intack: bool) {
+    pub async fn tune_status(&mut self, cancel: bool, intack: bool) -> FMTuneStatus {
         let mut response = [0; 8];
         let flags = (cancel as u8) << 1 | (intack as u8);
         self.i2c
             .write_read(&[Self::FM_TUNE_STATUS, flags], &mut response)
             .await
             .unwrap();
-        // TODO: return frequency info etc.
-        log::info!("tune status: {:?}", response);
+        log::debug!("tune status: {:?}", response);
         self.wait_for_cts().await;
+        return FMTuneStatus {
+            band_limit: (response[1] & 0b1000_0000) != 0,
+            valid: (response[1] & 0b0000_0001) != 0,
+            freq: u16::from_be_bytes(response[2..=3].try_into().unwrap()),
+            rssi: response[4],
+            snr: response[5],
+            antcap: response[7],
+        };
     }
 
     pub async fn receiver_status(&mut self) {
@@ -195,8 +268,10 @@ impl Si4706Radio<'_> {
         let valid = (response[2] & 1) != 0;
         let rssi = response[4];
         let snr = response[5];
+        let freq = self.tune_status(false, false).await.freq;
         log::info!(
-            "FM Recevier Status: valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
+            "FM Recevier Status: freq: {:6.2} MHz, valid: {:?}, rssi: {:3} dBµV, snr: {:3} dB",
+            f32::from(freq) / 100.0,
             valid,
             rssi,
             snr
@@ -272,17 +347,16 @@ impl Si4706Radio<'_> {
                 .unwrap() as i64;
             let drift = d_instant - d_timestamp;
             // plausible if absolute drift is smaller than allowed error
+            warn!(
+                "drift from {:?} ({:?}s ago): {}s",
+                then.datetime, d_instant, drift
+            );
             if drift.abs() < Self::PLAUSIBLE_ERROR {
                 // TODO: use buckets instead?
                 // rather than checking for an absolute error from the most recently received datetime,
                 // one could hash all buffer items into buckets (by minute, which they "agree" on) and
                 // then use the datetime from the largest of those buckets
                 plausible += 1;
-            } else {
-                warn!(
-                    "drift from {:?} ({:?}s ago): {}s",
-                    then.datetime, d_instant, drift
-                );
             }
         }
         // add update after checking, whatever the result

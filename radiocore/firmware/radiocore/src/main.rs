@@ -109,6 +109,14 @@ pub async fn radio(
     radio.power_up().await;
     radio.log_revision().await;
     radio.preparations().await;
+    // radio.full_frequency_scan().await;
+    // radio.tune(10000).await; // R.SH
+    // radio.tune(09995).await; // R.SH
+    // radio.tune(09035).await; // NDR 90.3
+    // radio.tune(10365).await; // Radio Hamburg
+    // radio.tune(09975).await; // Berlin: Antenne Brandenburg
+    // radio.tune(10750).await; // Berlin: BB Radio // NO DateTime despite very good RDS
+    // radio.tune(10455).await; // Berlin: RTL
     radio.tune(10000).await;
     Timer::after_secs(1).await;
     let mut rds = [0; 14];
