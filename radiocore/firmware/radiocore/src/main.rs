@@ -177,6 +177,8 @@ pub async fn ticktock(
 
     let mut rtc = Ds1338::bind(bus);
     info!("RTC: {:?}", rtc.get().await);
+    // rtc.clear_ram().await;
+    info!("RTC MEMORY: {:x?}", rtc.get_nvram().await);
     rtc.set_controls(RtcControls {
         oscillator_stop: false,
         output_control: true,
@@ -192,7 +194,7 @@ pub async fn ticktock(
         match select::select(tick.changed(), timeupdate.changed()).await {
             Either::First(_) => {
                 let dt = rtc.get_time().await;
-                let brightness = interpolate_brightness(dt, 64, 120);
+                let brightness = interpolate_brightness(dt, 62, 120);
                 debug!("set brightness {}", brightness);
                 vfd.brightness(brightness).await;
                 let mut str = format!(5; "{:02}:{:02}", dt.hour(), dt.minute())

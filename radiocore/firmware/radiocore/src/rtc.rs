@@ -35,6 +35,17 @@ impl Ds1338<'_> {
         RtcState::from(&r)
     }
 
+    pub async fn get_nvram(&mut self) -> [u8; 56] {
+        let mut r: [u8; 56] = [0; 56];
+        self.i2c.write_read(&[0x08], &mut r).await.unwrap();
+        r
+    }
+
+    pub async fn clear_ram(&mut self) {
+        let r: [u8; 56] = [0; 56];
+        self.i2c.write_at(&0x08, &r).await.unwrap()
+    }
+
     pub async fn set_controls(&mut self, ctl: RtcControls) {
         self.i2c.write(&[0x07, ctl.into()]).await.unwrap();
     }
