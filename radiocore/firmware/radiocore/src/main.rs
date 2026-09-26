@@ -9,6 +9,7 @@
 
 use embassy_executor::Spawner;
 use embassy_futures::select::{self, Either};
+use embassy_futures::yield_now;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::watch::Watch;
@@ -21,7 +22,7 @@ use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use heapless::format;
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use esp_backtrace as _;
 
@@ -40,7 +41,7 @@ pub extern "C" fn custom_halt() -> ! {
 
 use radiocore::display::VacuumDisplay;
 use radiocore::nightlight::interpolate_brightness;
-use radiocore::radio::{RDSUpdate, Si4706Radio, rds_to_julian};
+use radiocore::radio::{RDSUpdate, RdsContent, Si4706Radio};
 use radiocore::rtc::{Ds1338, RtcControls, SqweRate};
 use static_cell::StaticCell;
 
@@ -112,64 +113,73 @@ pub async fn radio(
     // radio.full_frequency_scan().await;
     // radio.tune(10000).await; // R.SH
     // radio.tune(09995).await; // R.SH
+    radio.tune(08755).await; // NDR 2
     // radio.tune(09035).await; // NDR 90.3
     // radio.tune(10365).await; // Radio Hamburg
     // radio.tune(09975).await; // Berlin: Antenne Brandenburg
     // radio.tune(10750).await; // Berlin: BB Radio // NO DateTime despite very good RDS
     // radio.tune(10455).await; // Berlin: RTL
-    radio.tune(10000).await;
     Timer::after_secs(1).await;
-    let mut rds = [0; 14];
     let mut lastinfo = Instant::now();
+
+    let mut station: heapless::String<8> = heapless::String::new();
+    station.push_str("        ").unwrap();
+    let mut message: heapless::String<64> = heapless::String::new();
+    for _ in 0..message.capacity() {
+        message.push(' ').unwrap();
+    }
+    let mut message_screen: u8 = 0;
+
     loop {
         if lastinfo.elapsed() > Duration::from_secs(60) {
             radio.receiver_status().await;
             lastinfo = Instant::now();
         }
-        if let Some(instant) = radio.is_rds_ready(&mut rds).await {
-            let block_a = u16::from_be_bytes([rds[4], rds[5]]);
-            let block_b = u16::from_be_bytes([rds[6], rds[7]]);
-            let block_c = u16::from_be_bytes([rds[8], rds[9]]);
-            let block_d = u16::from_be_bytes([rds[10], rds[11]]);
-            let b_group = (block_b & 0xf000) >> 12;
-            let group = match b_group {
-                0x00 => "STATION ",
-                0x02 => "MESSAGE ",
-                0x04 => "DATETIME",
-                _ => &format!(8; "  [{:02x}]  ", b_group).unwrap(),
-            };
-            let block_a_err = (rds[12] >> 6) & 0b11;
-            let block_b_err = (rds[12] >> 4) & 0b11;
-            let block_c_err = (rds[12] >> 2) & 0b11;
-            let block_d_err = (rds[12] >> 0) & 0b11;
-            if group == "DATETIME" {
-                warn!(
-                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x} err={:?}",
-                    block_a,
-                    group,
-                    block_b,
-                    block_c,
-                    block_d,
-                    [block_a_err, block_b_err, block_c_err, block_d_err],
-                );
-                if let Some(dt) = rds_to_julian(&rds) {
-                    if let Some(dt) = radio.plausible_update(RDSUpdate::new(instant, dt)) {
+        if let Some(packet) = radio.is_rds_ready().await {
+            match packet.content {
+                RdsContent::DateTime(datetime) => {
+                    if let Some(dt) =
+                        radio.plausible_update(RDSUpdate::new(packet.instant, datetime))
+                    {
                         rdstime.send(dt);
                     }
                 }
-            } else {
-                esp_println::print!(
-                    "RDS [{:04x}] typ: {}  B={:04x} C={:04x}, D={:04x} err={:?}\r",
-                    block_a,
-                    group,
-                    block_b,
-                    block_c,
-                    block_d,
-                    [block_a_err, block_b_err, block_c_err, block_d_err],
-                );
+                RdsContent::Station { offset, chars } => {
+                    // warn!("STATION offset={:02}  chars={:?}", offset, char);
+                    unsafe {
+                        let sta = station.as_bytes_mut();
+                        sta[offset] = chars[0] as u8;
+                        sta[offset + 1] = chars[1] as u8;
+                    }
+                    esp_println::print!("RDS {} :: {:?}\r", station, message);
+                }
+                RdsContent::Message {
+                    offset,
+                    chars,
+                    screen,
+                } => {
+                    // warn!("MESSAGE offset={:02}  chars={:?}", offset, char);
+                    if screen != message_screen {
+                        message.clear();
+                        for _ in 0..message.capacity() {
+                            message.push(' ').unwrap();
+                        }
+                        message_screen = screen;
+                    }
+                    unsafe {
+                        let msg = message.as_bytes_mut();
+                        msg[offset] = chars[0] as u8;
+                        msg[offset + 1] = chars[1] as u8;
+                        msg[offset + 2] = chars[2] as u8;
+                        msg[offset + 3] = chars[3] as u8;
+                    }
+                    esp_println::print!("RDS {} :: {:?}\r", station, message);
+                }
             }
+            Timer::after_millis(5).await;
+        } else {
+            yield_now().await;
         }
-        Timer::after_millis(10).await;
     }
     // radio.tune_status().await;
 }

@@ -41,6 +41,28 @@ pub struct Frequency {
     pub snr: u8,
 }
 
+#[derive(Debug, Clone)]
+pub struct RdsPacket {
+    pub instant: embassy_time::Instant,
+    pub program: u16,
+    pub errors: [u8; 4],
+    pub content: RdsContent,
+}
+
+#[derive(Debug, Clone)]
+pub enum RdsContent {
+    Station {
+        offset: usize,
+        chars: [u8; 2],
+    },
+    Message {
+        offset: usize,
+        chars: [u8; 4],
+        screen: u8,
+    },
+    DateTime(jiff::Zoned),
+}
+
 impl Si4706Radio<'_> {
     // addresses defined in Si4706-D50.pdf, § 4.15.1
     pub const ADDRESS_SEN_LOW: u8 = 0b0010001;
@@ -307,19 +329,82 @@ impl Si4706Radio<'_> {
         }
     }
 
-    pub async fn is_rds_ready(&mut self, rds: &mut [u8]) -> Option<embassy_time::Instant> {
+    pub fn parse_rds(instant: embassy_time::Instant, rds: &[u8]) -> Option<RdsPacket> {
+        // 04-05: Block A is always program identification
+        // 06-07: Block B is group type and offset
+        // 08-11: Block C+D is usually data
+        let program = u16::from_be_bytes([rds[4], rds[5]]);
+        let errors = [
+            (rds[12] >> 6) & 0b11,
+            (rds[12] >> 4) & 0b11,
+            (rds[12] >> 2) & 0b11,
+            (rds[12] >> 0) & 0b11,
+        ];
+
+        // group type and version (A/B)
+        let block_b = u16::from_be_bytes([rds[6], rds[7]]);
+        let group_type = ((block_b & 0xf000) >> 12) as u8;
+        let group_version = ((block_b & 0x0800) >> 11) as u8; // A/B
+
+        // ignores version B for now
+        if group_version == 1 {
+            return None;
+        }
+
+        let content = match group_type {
+            // station
+            0x00 => {
+                let offset = (block_b & 0b11) as usize;
+                RdsContent::Station {
+                    offset: offset * 2,
+                    chars: [rds[10], rds[11]],
+                }
+            }
+            // message
+            0x02 => {
+                let offset = (block_b & 0b1111) as usize;
+                let screen = ((block_b & 0x0010) >> 4) as u8;
+                RdsContent::Message {
+                    offset: offset * 4,
+                    chars: [rds[8], rds[9], rds[10], rds[11]],
+                    screen,
+                }
+            }
+            // datetime
+            0x04 => {
+                if let Some(dt) = rds_to_julian(rds) {
+                    RdsContent::DateTime(dt)
+                } else {
+                    return None;
+                }
+            }
+            _ => {
+                return None;
+            }
+        };
+
+        Some(RdsPacket {
+            instant,
+            program,
+            errors,
+            content,
+        })
+    }
+
+    pub async fn is_rds_ready(&mut self) -> Option<RdsPacket> {
         let mut buf = [0; 1];
+        let mut rds = [0; 14];
         let now = embassy_time::Instant::now();
         self.i2c.write(&[Self::GET_INT_STATUS]).await.unwrap();
         self.i2c.read(&mut buf).await.unwrap();
         if status(&buf[0]).rds_data {
             self.wait_for_cts().await;
             self.i2c.write(&[Self::FM_RDS_STATUS, 0x01]).await.unwrap();
-            self.i2c.read(rds).await.unwrap();
+            self.i2c.read(&mut rds).await.unwrap();
             // log::info!("[RDS] {:08b} {:08b}", rds[1], rds[2]);
             if (rds[1] & 0x01) != 0 && (rds[2] & 0x01) != 0 {
-                // rds_recv and rds is in sync
-                return Some(now);
+                // rds_recv and rds is in sync - parse the data
+                return Self::parse_rds(now, &rds);
             }
         }
         None
